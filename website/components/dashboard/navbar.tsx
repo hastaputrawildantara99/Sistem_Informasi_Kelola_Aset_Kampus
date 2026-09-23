@@ -4,10 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Bell, LogIn, UserCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 
 type NavbarProps = {
-  isLoggedIn?: boolean;
   user?: {
     name: string;
     email: string;
@@ -17,24 +15,7 @@ type NavbarProps = {
   };
 };
 
-export default function Navbar({ isLoggedIn = false, user }: NavbarProps) {
-  const [currentUser, setCurrentUser] = useState(user);
-
-  useEffect(() => {
-    async function getUser() {
-      const res = await fetch("/api/auth/me");
-
-      if (res.ok) {
-        const data = await res.json();
-
-        setCurrentUser(data.user);
-      }
-    }
-
-    if (isLoggedIn) {
-      getUser();
-    }
-  }, [isLoggedIn]);
+export default function Navbar({ user: currentUser }: NavbarProps) {
   const router = useRouter();
 
   async function handleLogout() {
@@ -106,7 +87,7 @@ export default function Navbar({ isLoggedIn = false, user }: NavbarProps) {
 
         {/* RIGHT SECTION */}
 
-        {isLoggedIn ? (
+        {currentUser ? (
           // USER LOGIN
 
           <div
