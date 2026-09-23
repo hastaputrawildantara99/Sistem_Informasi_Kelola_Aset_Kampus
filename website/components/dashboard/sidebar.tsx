@@ -83,22 +83,22 @@ export default function Sidebar({
     {
       name: "Dashboard",
       icon: LayoutDashboard,
-      href: "/petugas",
+      href: "/dashboard/petugas",
     },
     {
       name: "Kelola Reservasi",
       icon: CalendarDays,
-      href: "/petugas/reservasi",
+      href: "/dashboard/petugas/reservasi",
     },
     {
       name: "Laporan & Fasilitas",
       icon: Wrench,
-      href: "/petugas/laporan",
+      href: "/dashboard/petugas/laporan",
     },
     {
       name: "Pengaturan",
       icon: Settings,
-      href: "/petugas/settings",
+      href: "/dashboard/petugas/settings",
     },
   ];
 
@@ -123,8 +123,20 @@ export default function Sidebar({
       {/* BRAND */}
 
       <div className="px-2">
+        <Link href="/">
+          <Image
+            src="/sikak-logo-putih.png"
+            alt="SIKAK"
+            width={170}
+            height={52}
+            className="h-auto w-[170px]"
+            priority
+          />
+        </Link>
+
         <h1
           className="
+          sr-only
           text-2xl
           font-bold
           tracking-wide
@@ -135,6 +147,7 @@ export default function Sidebar({
 
         <p
           className="
+          mt-1
           text-[11px]
           uppercase
           text-green-100
