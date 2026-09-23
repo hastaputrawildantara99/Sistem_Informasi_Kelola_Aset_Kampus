@@ -3,6 +3,7 @@
 import Sidebar from "@/components/dashboard/sidebar";
 import {
   ArrowLeft,
+  Ban,
   CalendarDays,
   Check,
   Clock3,
@@ -13,7 +14,11 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
-type ReservationStatus = "Menunggu" | "Disetujui" | "Ditolak";
+type ReservationStatus =
+  | "Menunggu"
+  | "Disetujui"
+  | "Ditolak"
+  | "DIBATALKAN";
 
 type Reservation = {
   id: string;
@@ -26,6 +31,7 @@ type Reservation = {
   tujuan: string;
   status: ReservationStatus;
   alasanPenolakan?: string;
+  alasanPembatalan?: string;
 };
 
 const initialReservations: Reservation[] = [
@@ -70,9 +76,15 @@ export default function PetugasReservasiPage() {
     useState<Reservation | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [cancellationError, setCancellationError] = useState("");
 
   const pendingReservations = reservations.filter(
     (reservation) => reservation.status === "Menunggu"
+  );
+  const processedReservations = reservations.filter(
+    (reservation) => reservation.status !== "Menunggu"
   );
 
   function approveReservation(id: string) {
@@ -115,6 +127,45 @@ export default function PetugasReservasiPage() {
     setRejectionReason("");
   }
 
+  function openCancelModal(reservation: Reservation) {
+    setSelectedReservation(reservation);
+    setCancellationReason("");
+    setCancellationError("");
+    setShowCancelModal(true);
+  }
+
+  function closeCancelModal() {
+    setShowCancelModal(false);
+    setSelectedReservation(null);
+    setCancellationReason("");
+    setCancellationError("");
+  }
+
+  function cancelReservation() {
+    if (!selectedReservation) {
+      return;
+    }
+
+    if (!cancellationReason.trim()) {
+      setCancellationError("Alasan pembatalan wajib diisi.");
+      return;
+    }
+
+    setReservations((currentReservations) =>
+      currentReservations.map((reservation) =>
+        reservation.id === selectedReservation.id
+          ? {
+              ...reservation,
+              status: "DIBATALKAN",
+              alasanPembatalan: cancellationReason.trim(),
+            }
+          : reservation
+      )
+    );
+
+    closeCancelModal();
+  }
+
   return (
     <>
       <Sidebar
@@ -155,7 +206,7 @@ export default function PetugasReservasiPage() {
           </div>
         </section>
 
-        <section className="mb-6 grid gap-4 md:grid-cols-3">
+        <section className="mb-6 grid gap-4 md:grid-cols-4">
           <SummaryCard
             title="Menunggu"
             value={reservations.filter(
@@ -178,6 +229,14 @@ export default function PetugasReservasiPage() {
               (reservation) => reservation.status === "Ditolak"
             ).length}
             description="Reservasi yang ditolak"
+          />
+
+          <SummaryCard
+            title="Dibatalkan"
+            value={reservations.filter(
+              (reservation) => reservation.status === "DIBATALKAN"
+            ).length}
+            description="Reservasi yang dibatalkan"
           />
         </section>
 
@@ -221,9 +280,7 @@ export default function PetugasReservasiPage() {
                           {reservation.fasilitas}
                         </h3>
 
-                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                          {reservation.status}
-                        </span>
+                        <ReservationStatusBadge status={reservation.status} />
                       </div>
 
                       <p className="mt-1 text-xs text-gray-400">
@@ -286,6 +343,106 @@ export default function PetugasReservasiPage() {
                         Tolak
                       </button>
                     </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <h2 className="text-lg font-bold text-gray-900">
+              Reservasi Diproses
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-500">
+              Reservasi yang sudah disetujui, ditolak, atau dibatalkan.
+            </p>
+          </div>
+
+          {processedReservations.length === 0 ? (
+            <div className="px-5 py-8 text-center">
+              <p className="text-sm font-semibold text-gray-900">
+                Belum ada reservasi yang diproses
+              </p>
+
+              <p className="mt-2 text-sm text-gray-500">
+                Reservasi akan muncul di sini setelah disetujui atau ditolak.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {processedReservations.map((reservation) => (
+                <div
+                  key={reservation.id}
+                  className="p-5 transition hover:bg-gray-50"
+                >
+                  <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h3 className="font-bold text-gray-900">
+                          {reservation.fasilitas}
+                        </h3>
+
+                        <ReservationStatusBadge status={reservation.status} />
+                      </div>
+
+                      <p className="mt-1 text-xs text-gray-400">
+                        ID Reservasi: {reservation.id}
+                      </p>
+
+                      <div className="mt-4 grid gap-3 text-sm text-gray-600 md:grid-cols-2">
+                        <InfoItem
+                          icon={User}
+                          label="Pemohon"
+                          value={reservation.pemohon}
+                        />
+
+                        <InfoItem
+                          icon={CalendarDays}
+                          label="Tanggal"
+                          value={reservation.tanggal}
+                        />
+
+                        <InfoItem
+                          icon={Clock3}
+                          label="Waktu"
+                          value={reservation.waktu}
+                        />
+
+                        <InfoItem
+                          icon={MapPin}
+                          label="Lokasi"
+                          value={reservation.lokasi}
+                        />
+                      </div>
+
+                      {reservation.alasanPenolakan && (
+                        <ReasonBox
+                          title="Alasan penolakan"
+                          value={reservation.alasanPenolakan}
+                        />
+                      )}
+
+                      {reservation.alasanPembatalan && (
+                        <ReasonBox
+                          title="Alasan pembatalan"
+                          value={reservation.alasanPembatalan}
+                        />
+                      )}
+                    </div>
+
+                    {reservation.status === "Disetujui" && (
+                      <button
+                        type="button"
+                        onClick={() => openCancelModal(reservation)}
+                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                      >
+                        <Ban size={17} />
+                        Batalkan Reservasi
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -376,6 +533,82 @@ export default function PetugasReservasiPage() {
           </div>
         </div>
       )}
+
+      {showCancelModal && selectedReservation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">
+                  Batalkan Reservasi
+                </h2>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Berikan alasan pembatalan untuk reservasi{" "}
+                  <span className="font-semibold">
+                    {selectedReservation.id}
+                  </span>
+                  .
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeCancelModal}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Tutup"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mt-5">
+              <label
+                htmlFor="cancellationReason"
+                className="text-sm font-semibold text-gray-700"
+              >
+                Alasan pembatalan
+              </label>
+
+              <textarea
+                id="cancellationReason"
+                value={cancellationReason}
+                onChange={(event) => {
+                  setCancellationReason(event.target.value);
+                  setCancellationError("");
+                }}
+                placeholder="Contoh: Fasilitas harus digunakan untuk kegiatan mendesak kampus."
+                rows={4}
+                className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-[#006B45] focus:ring-2 focus:ring-emerald-100"
+              />
+
+              {cancellationError && (
+                <p className="mt-2 text-sm font-medium text-red-600">
+                  {cancellationError}
+                </p>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeCancelModal}
+                className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={cancelReservation}
+                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+              >
+                Batalkan Reservasi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -396,6 +629,35 @@ function SummaryCard({
       <p className="mt-3 text-3xl font-bold text-gray-900">{value}</p>
 
       <p className="mt-2 text-sm text-gray-500">{description}</p>
+    </div>
+  );
+}
+
+function ReservationStatusBadge({ status }: { status: ReservationStatus }) {
+  const badgeClassName =
+    status === "Disetujui"
+      ? "bg-emerald-50 text-[#006B45]"
+      : status === "DIBATALKAN"
+        ? "bg-red-50 text-red-700"
+        : "bg-amber-50 text-amber-700";
+
+  return (
+    <span
+      className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClassName}`}
+    >
+      {status}
+    </span>
+  );
+}
+
+function ReasonBox({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="mt-4 rounded-lg bg-gray-50 p-3">
+      <p className="text-xs font-semibold uppercase text-gray-400">
+        {title}
+      </p>
+
+      <p className="mt-1 text-sm text-gray-700">{value}</p>
     </div>
   );
 }
