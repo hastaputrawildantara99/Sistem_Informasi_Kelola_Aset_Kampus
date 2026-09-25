@@ -214,3 +214,95 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function GET() {
+  try {
+    // 1. Periksa sesi login.
+    const session = await getCurrentUser();
+    const userId = session?.id;
+
+    if (
+      typeof userId !== "number" ||
+      !Number.isSafeInteger(userId) ||
+      userId < 1 ||
+      userId > 2147483647
+    ) {
+      return NextResponse.json(
+        { message: "Silakan login terlebih dahulu." },
+        { status: 401 },
+      );
+    }
+
+    // 2. Periksa akun dan role terbaru.
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { message: "Akun tidak ditemukan. Silakan login kembali." },
+        { status: 401 },
+      );
+    }
+
+    if (user.role !== "USER") {
+      return NextResponse.json(
+        { message: "Riwayat pribadi hanya untuk akun pengguna." },
+        { status: 403 },
+      );
+    }
+
+    // 3. Ambil hanya reservasi milik pengguna tersebut.
+    const reservations = await prisma.reservation.findMany({
+      where: {
+        userId: user.id,
+      },
+      select: {
+        id: true,
+        facilityId: true,
+        startTime: true,
+        endTime: true,
+        purpose: true,
+        status: true,
+        cancelledAt: true,
+        cancellationReason: true,
+        createdAt: true,
+        updatedAt: true,
+        facility: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            type: true,
+            location: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: [
+        { createdAt: "desc" },
+        { id: "desc" },
+      ],
+    });
+
+    return NextResponse.json(
+      { data: reservations },
+      {
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
+      },
+    );
+  } catch (error) {
+    console.error("Gagal mengambil riwayat reservasi:", error);
+
+    return NextResponse.json(
+      { message: "Riwayat reservasi gagal dimuat." },
+      { status: 500 },
+    );
+  }
+}
