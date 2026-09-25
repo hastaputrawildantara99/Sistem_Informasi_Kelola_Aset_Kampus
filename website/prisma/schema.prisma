@@ -28,9 +28,14 @@ model User {
 
   staf Staf?
 
+  reservations Reservation[]
+  reports      Report[]
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
+
+  verified Boolean @default(false)
 }
 
 model Mahasiswa {
@@ -63,6 +68,90 @@ model Staf {
   user User @relation(fields: [userId], references: [id])
 }
 
+model Facility {
+  id          Int            @id @default(autoincrement())
+  code        String         @unique
+  name        String
+  building     String         @default("Gedung B")
+  floor       String         @default("Lantai 1")
+  type        FacilityType
+  location    String
+  capacity    Int
+  description String?        @db.Text
+  status      FacilityStatus @default(ACTIVE)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  reservations Reservation[]
+  reports      Report[]
+
+  @@index([type, location, capacity])
+  @@index([status])
+}
+
+model Reservation {
+  id         Int @id @default(autoincrement())
+  userId     Int
+  facilityId Int
+
+  // Full date and time stored in UTC; operating hours use the campus timezone.
+  startTime DateTime @map("start_time") @db.DateTime(0)
+  endTime   DateTime @map("end_time") @db.DateTime(0)
+  purpose   String   @db.Text
+
+  status             ReservationStatus @default(PENDING)
+  cancelledAt        DateTime?
+  cancellationReason String?           @db.Text
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+
+  @@index([facilityId, status, startTime, endTime])
+  @@index([userId, createdAt])
+}
+
+model Report {
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  facilityId  Int
+  category    String
+  description String       @db.Text
+  photoUrl    String?
+  status      ReportStatus @default(PENDING)
+  notes       String?      @db.Text
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([facilityId], map: "Report_facilityId_fkey")
+  @@index([userId], map: "Report_userId_fkey")
+}
+
+enum FacilityType {
+  CLASSROOM
+  HALL
+  LABORATORY
+  EQUIPMENT
+  FIELD
+}
+
+enum FacilityStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum ReservationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum Role {
   ADMIN
 
@@ -77,4 +166,11 @@ enum JenisUser {
   DOSEN
 
   STAF
+}
+
+enum ReportStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }
