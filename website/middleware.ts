@@ -50,7 +50,7 @@ export async function middleware(req: NextRequest) {
       */
 
       const accessRules = {
-        "/dashboard/admin": ["ADMIN"],
+        "/dashboard/admin": ["ADMIN", "USER"], // TODO: hapus "USER" setelah testing
 
         "/dashboard/petugas": ["PETUGAS"],
 

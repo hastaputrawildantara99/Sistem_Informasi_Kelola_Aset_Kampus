@@ -31,6 +31,10 @@ model User {
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
+
+  verified     Boolean       @default(false)
+  reservations Reservation[]
+  reports      Report[]
 }
 
 model Mahasiswa {
@@ -77,4 +81,81 @@ enum JenisUser {
   DOSEN
 
   STAF
+}
+
+model Facility {
+  id          Int            @id @default(autoincrement())
+  name        String
+  code        String         @unique
+  building    String         @default("Gedung B")
+  floor       String         @default("Lantai 1")
+  location    String?
+  capacity    Int?
+  type        FacilityType   @default(RUANGAN)
+  status      FacilityStatus @default(ACTIVE)
+  description String?        @db.Text
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  reservations Reservation[]
+  reports      Report[]
+}
+
+model Reservation {
+  id          Int               @id @default(autoincrement())
+  userId      Int
+  facilityId  Int
+  date        DateTime
+  startTime   String
+  endTime     String
+  status      ReservationStatus @default(PENDING)
+  purpose     String?           @db.Text
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id])
+  facility Facility @relation(fields: [facilityId], references: [id])
+}
+
+model Report {
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  facilityId  Int
+  category    String
+  description String       @db.Text
+  photoUrl    String?
+  status      ReportStatus @default(PENDING)
+  notes       String?      @db.Text
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id])
+  facility Facility @relation(fields: [facilityId], references: [id])
+}
+
+enum FacilityType {
+  RUANGAN
+  LABORATORIUM
+  AUDITORIUM
+  AULA
+}
+
+enum FacilityStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum ReservationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ReportStatus {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }
