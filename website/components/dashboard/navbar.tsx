@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Bell, LogIn, UserCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 type NavbarProps = {
   user?: {
@@ -76,9 +76,9 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
             p-1
           "
         >
-          <MenuItem active>Katalog Fasilitas</MenuItem>
+          <MenuItem href="/">Katalog Fasilitas</MenuItem>
 
-          <MenuItem>Reservasi</MenuItem>
+          <MenuItem href="/reservations">Reservasi</MenuItem>
 
           <MenuItem>Laporan Kerusakan</MenuItem>
 
@@ -224,24 +224,27 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
 
 function MenuItem({
   children,
-  active,
+  href = "#",
 }: {
   children: React.ReactNode;
-  active?: boolean;
+  href?: string;
 }) {
+  const pathname = usePathname();
+
+  const active =
+    href !== "#" &&
+    (pathname === href ||
+      (href !== "/" && pathname.startsWith(`${href}/`)));
+
   return (
     <Link
-      href="#"
-      className={`
-rounded-full
-px-5
-py-2
-text-sm
-font-medium
-
-${active ? "bg-[#007A4D] text-white" : "text-gray-700 hover:bg-white"}
-
-`}
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`rounded-full px-5 py-2 text-sm font-medium ${
+        active
+          ? "bg-[#007A4D] text-white"
+          : "text-gray-700 hover:bg-white"
+      }`}
     >
       {children}
     </Link>
