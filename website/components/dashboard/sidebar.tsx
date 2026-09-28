@@ -50,32 +50,32 @@ export default function Sidebar({
     {
       name: "Dashboard Overview",
       icon: LayoutDashboard,
-      href: "/admin",
+      href: "/dashboard/admin",
     },
     {
       name: "Manajemen Akun",
       icon: Users,
-      href: "/admin/users",
+      href: "/dashboard/admin/users",
     },
     {
       name: "Kelola Fasilitas",
       icon: Building2,
-      href: "/admin/fasilitas",
+      href: "/dashboard/admin/fasilitas",
     },
     {
       name: "Verifikasi Registrasi",
       icon: ClipboardCheck,
-      href: "/admin/verifikasi",
+      href: "/dashboard/admin/verifikasi",
     },
     {
       name: "Rekap & Laporan",
       icon: FileText,
-      href: "/admin/laporan",
+      href: "/dashboard/admin/rekap",
     },
     {
       name: "Pengaturan",
       icon: Settings,
-      href: "/admin/settings",
+      href: "/dashboard/admin/settings",
     },
   ];
 
@@ -83,22 +83,22 @@ export default function Sidebar({
     {
       name: "Dashboard",
       icon: LayoutDashboard,
-      href: "/petugas",
+      href: "/dashboard/petugas",
     },
     {
       name: "Kelola Reservasi",
       icon: CalendarDays,
-      href: "/petugas/reservasi",
+      href: "/dashboard/petugas/reservasi",
     },
     {
       name: "Laporan & Fasilitas",
       icon: Wrench,
-      href: "/petugas/laporan",
+      href: "/dashboard/petugas/laporan",
     },
     {
       name: "Pengaturan",
       icon: Settings,
-      href: "/petugas/settings",
+      href: "/dashboard/petugas/settings",
     },
   ];
 
@@ -122,26 +122,23 @@ export default function Sidebar({
     >
       {/* BRAND */}
 
-      <div className="px-2">
-        <h1
-          className="
-          text-2xl
-          font-bold
-          tracking-wide
-          "
-        >
-          🌿 SIKAK
-        </h1>
-
-        <p
-          className="
-          text-[11px]
-          uppercase
-          text-green-100
-          "
-        >
-          {role === "admin" ? "Admin Portal" : "Portal Operasional"}
-        </p>
+      <div className="flex items-center gap-3 px-2">
+        <Image
+          src="/logo3.svg"
+          alt="SIKAK Logo"
+          width={44}
+          height={44}
+          className="h-11 w-11 object-contain"
+          priority
+        />
+        <div>
+          <h1 className="text-2xl font-bold tracking-wider leading-none text-white">
+            SIKAK
+          </h1>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-green-100/90 mt-1">
+            {role === "admin" ? "ADMIN PORTAL" : "PORTAL OPERASIONAL"}
+          </p>
+        </div>
       </div>
 
       {/* MENU TITLE */}
@@ -180,17 +177,17 @@ export default function Sidebar({
               className={`
                   flex
                   items-center
-                  gap-3
-                  rounded-lg
-                  px-3
-                  py-2.5
-                  text-sm
-                  transition
+                  gap-3.5
+                  px-4
+                  py-3
+                  text-[15px]
+                  transition-all
+                  duration-200
 
                   ${
                     active
-                      ? "bg-white text-[#006B45] font-semibold"
-                      : "text-green-50 hover:bg-white/10"
+                      ? "bg-[#dce8e1] text-[#006B45] font-bold rounded-2xl shadow-sm"
+                      : "text-white/90 hover:bg-white/10 font-medium rounded-xl"
                   }
 
                 `}
