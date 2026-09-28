@@ -32,7 +32,7 @@ for (const [zone, expected] of [
   ["Asia/Jayapura", "2026-09-24T22:00:00.000Z"],
 ]) {
   test(`konversi zona ${zone} tidak bergantung zona waktu komputer`, () => {
-    assert.equal(validateReservationTime(validInput, zone, now).startTime.toISOString(), expected);
+    assert.equal(validateReservationTime(validInput, zone, new Date("2026-09-22T00:00:00Z")).startTime.toISOString(), expected);
   });
 }
 
@@ -86,7 +86,16 @@ test("waktu mulai yang sudah lewat atau tepat saat ini ditolak", () => {
   for (const date of ["2026-09-22", "2026-09-23"]) {
     assert.throws(() => validate({ ...validInput, date }), errorCode("START_NOT_IN_FUTURE"));
   }
-  assert.doesNotThrow(() => validate({ ...validInput, date: "2026-09-23", startTime: "07:30", endTime: "08:00" }));
+  assert.throws(
+    () =>
+      validate({
+        ...validInput,
+        date: "2026-09-23",
+        startTime: "07:30",
+        endTime: "08:00",
+      }),
+    errorCode("MINIMUM_BOOKING_NOTICE"),
+  );
 });
 
 test("satu hari memiliki 26 slot berurutan, masing-masing 30 menit", () => {
@@ -128,11 +137,29 @@ test("jam sama pada tanggal berbeda tidak bentrok", () => {
   assert.equal(hasTimeOverlap(existing, requested), false);
 });
 
-test("hanya APPROVED memblokir slot; PENDING tetap dapat mengantre", () => {
-  for (const status of ["PENDING", "REJECTED", "CANCELLED", "APPROVED"]) {
-    const slots = getAvailabilitySlots("2026-09-25", "ACTIVE", [{ ...existing, status }], now);
-    const unavailable = slots.filter((slot) => !slot.available).map((slot) => slot.startLabel);
-    assert.deepEqual(unavailable, status === "APPROVED" ? ["09:00", "09:30"] : []);
+test("PENDING dan APPROVED memblokir slot", () => {
+  for (const status of [
+    "PENDING",
+    "APPROVED",
+    "REJECTED",
+    "CANCELLED",
+  ]) {
+    const slots = getAvailabilitySlots(
+      "2026-09-25",
+      "ACTIVE",
+      [{ ...existing, status }],
+      now,
+    );
+
+    const unavailable = slots
+      .filter((slot) => !slot.available)
+      .map((slot) => slot.startLabel);
+
+    const expected = ["PENDING", "APPROVED"].includes(status)
+      ? ["09:00", "09:30"]
+      : [];
+
+    assert.deepEqual(unavailable, expected);
   }
 });
 
@@ -146,7 +173,7 @@ test("fasilitas dalam perbaikan atau nonaktif tidak memiliki slot tersedia", () 
 
 test("slot yang sudah mulai tidak tersedia untuk pengajuan baru", () => {
   const slots = getAvailabilitySlots("2026-09-25", "ACTIVE", [], new Date("2026-09-25T00:30:00Z"));
-  assert.deepEqual(slots.filter((slot) => !slot.available).map((slot) => slot.startLabel), ["07:00", "07:30"]);
+  assert.ok(slots.every((slot) => !slot.available));
 });
 
 test("hasil ketersediaan tidak membocorkan detail reservasi", () => {
@@ -191,4 +218,60 @@ test("Date internal tidak valid tidak boleh lolos sebagai tidak bentrok/boleh di
   assert.throws(() => hasTimeOverlap(existing, { startTime: existing.endTime, endTime: existing.startTime }), TypeError);
   assert.throws(() => assertUserCanCancel(reservation, 1, new Date("invalid")), TypeError);
   assert.throws(() => validateReservationTime(validInput, "Asia/Jakarta", new Date("invalid")), TypeError);
+});
+
+// validInput dimulai tepat 48 jam setelah konstanta now.
+for (const [offset, allowed] of [
+  [-1, true],
+  [0, true],
+  [1, false],
+]) {
+  test(`batas 48 jam dengan pergeseran waktu pengajuan ${offset} ms`, () => {
+    const check = () =>
+      validateReservationTime(
+        validInput,
+        "Asia/Jakarta",
+        new Date(now.getTime() + offset),
+      );
+
+    if (allowed) {
+      assert.doesNotThrow(check);
+    } else {
+      assert.throws(check, errorCode("MINIMUM_BOOKING_NOTICE"));
+    }
+  });
+}
+
+test("ketersediaan slot mengikuti batas 48 jam", () => {
+  for (const [offset, firstAvailable] of [
+    [-1, true],
+    [0, true],
+    [1, false],
+  ]) {
+    const slots = getAvailabilitySlots(
+      "2026-09-25",
+      "ACTIVE",
+      [],
+      new Date(now.getTime() + offset),
+    );
+
+    assert.equal(slots[0].available, firstAvailable);
+    assert.equal(slots[1].available, true);
+  }
+});
+
+test("pengajuan 28 September sore untuk 29 September pagi ditolak", () => {
+  assert.throws(
+    () =>
+      validateReservationTime(
+        {
+          date: "2026-09-29",
+          startTime: "07:00",
+          endTime: "08:00",
+        },
+        "Asia/Jakarta",
+        new Date("2026-09-28T16:00:00+07:00"),
+      ),
+    errorCode("MINIMUM_BOOKING_NOTICE"),
+  );
 });

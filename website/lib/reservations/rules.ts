@@ -2,6 +2,7 @@
 export const OPENING_MINUTES = 7 * 60;
 export const CLOSING_MINUTES = 20 * 60;
 export const SLOT_MINUTES = 30;
+export const MIN_BOOKING_NOTICE_MS = 48 * 60 * 60 * 1000;
 export const CANCELLATION_NOTICE_MS = 24 * 60 * 60 * 1000;
 
 const CAMPUS_OFFSETS = {
@@ -13,7 +14,7 @@ const CAMPUS_OFFSETS = {
 export type CampusTimeZone = keyof typeof CAMPUS_OFFSETS;
 export type TimeRange = { startTime: Date; endTime: Date };
 export const CAMPUS_TIME_ZONE: CampusTimeZone = "Asia/Jakarta";
-export const BLOCKING_RESERVATION_STATUSES = ["APPROVED"] as const;
+export const BLOCKING_RESERVATION_STATUSES = ["PENDING","APPROVED"] as const;
 
 export type ReservationRuleCode =
   | "INVALID_INPUT"
@@ -23,6 +24,7 @@ export type ReservationRuleCode =
   | "INVALID_SLOT"
   | "INVALID_RANGE"
   | "START_NOT_IN_FUTURE"
+  | "MINIMUM_BOOKING_NOTICE"
   | "FORBIDDEN"
   | "NOT_CANCELLABLE"
   | "CANCELLATION_DEADLINE";
@@ -103,8 +105,12 @@ export function validateReservationTime(
 
   const startTime = toUtc(date, startMinutes, timeZone);
   const endTime = toUtc(date, endMinutes, timeZone);
-  if (startTime.getTime() <= timestamp(now)) {
+  const currentTime = timestamp(now);
+
+  if (startTime.getTime() <= currentTime) {
     throw new ReservationRuleError("START_NOT_IN_FUTURE", "Waktu mulai harus berada di masa mendatang.");
+  } if (startTime.getTime() - currentTime < MIN_BOOKING_NOTICE_MS){
+    throw new ReservationRuleError("MINIMUM_BOOKING_NOTICE", "Pengajuan reservasi wajib dilakukan minimal 48 jam sebelum waktu mulai.",);
   }
   return { startTime, endTime };
 }
@@ -151,7 +157,7 @@ export function getAvailabilitySlots(
   return createOperatingSlots(date).map((slot) => ({
     ...slot,
     available: facilityStatus === "ACTIVE"
-      && slot.startTime.getTime() > currentTime
+      && slot.startTime.getTime() - currentTime >= MIN_BOOKING_NOTICE_MS
       && !blocking.some((reservation) => hasTimeOverlap(reservation, slot)),
   }));
 }

@@ -142,7 +142,7 @@ export async function POST(request: Request) {
 
         if (conflict) {
           return NextResponse.json(
-            { message: "Waktu yang dipilih bentrok dengan reservasi disetujui." },
+            { message: "Waktu yang dipilih sudah digunakan oleh reservasi yang menunggu persetujuan atau telah disetujui." },
             { status: 409 },
           );
         }
