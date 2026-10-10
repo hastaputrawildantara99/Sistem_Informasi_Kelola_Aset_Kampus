@@ -23,6 +23,8 @@ export default async function Page() {
           userRole={typeof user?.role === "string" ? user.role : undefined}
         />
       </main>
+
+      <Footer />
     </>
   );
 }
