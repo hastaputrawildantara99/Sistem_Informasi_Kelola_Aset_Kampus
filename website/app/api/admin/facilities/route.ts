@@ -15,7 +15,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, code, building, floor, capacity, type, status, description } = body;
+    const { name, code, building, floor, location, capacity, type, status, description } = body;
 
     const facility = await prisma.facility.create({
       data: {
@@ -23,8 +23,9 @@ export async function POST(request: Request) {
         code: code || `FAC-${Date.now()}`,
         building: building || 'Gedung B',
         floor: floor || 'Lantai 1',
+        location: location || `${building || 'Gedung B'}, ${floor || 'Lantai 1'}`,
         capacity: capacity ? Number(capacity) : 30,
-        type: type || 'RUANGAN',
+        type: type || 'CLASSROOM',
         status: status || 'ACTIVE',
         description,
       },
