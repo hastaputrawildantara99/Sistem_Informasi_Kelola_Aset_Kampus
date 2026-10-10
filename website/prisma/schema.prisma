@@ -20,8 +20,8 @@ model User {
   verified    Boolean       @default(false)
   dosen       Dosen?
   mahasiswa   Mahasiswa?
-  Report      Report[]
-  Reservation Reservation[]
+  reservations Reservation[]
+  reports      Report[]
   staf        Staf?
 }
 
@@ -29,14 +29,16 @@ model Mahasiswa {
   id     Int    @id @default(autoincrement())
   nim    String @unique
   userId Int    @unique
-  user   User   @relation(fields: [userId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Dosen {
   id     Int    @id @default(autoincrement())
   nip    String @unique
   userId Int    @unique
-  user   User   @relation(fields: [userId], references: [id])
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Staf {
@@ -47,91 +49,63 @@ model Staf {
 }
 
 model Facility {
-  id          Int             @id @default(autoincrement())
+  id          Int            @id @default(autoincrement())
+  code        String         @unique
   name        String
-  code        String          @unique
-  building    String          @default("Gedung B")
-  floor       String          @default("Lantai 1")
+  building    String         @default("Gedung B")
+  floor       String         @default("Lantai 1")
+  type        FacilityType
   location    String
   capacity    Int
-  type        Facility_type
-  status      Facility_status @default(ACTIVE)
-  description String?         @db.Text
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime
-  Report      Report[]
-  Reservation Reservation[]
+  description String?        @db.Text
+  status      FacilityStatus @default(ACTIVE)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
-  @@index([status])
+  reservations Reservation[]
+  reports      Report[]
+
   @@index([type, location, capacity])
-}
-
-model Facility_backup_20260924 {
-  id          Int                             @id @default(autoincrement())
-  name        String
-  code        String                          @unique(map: "Facility_code_key")
-  building    String                          @default("Gedung B")
-  floor       String                          @default("Lantai 1")
-  location    String?
-  capacity    Int?
-  type        Facility_backup_20260924_type   @default(RUANGAN)
-  status      Facility_backup_20260924_status @default(ACTIVE)
-  description String?                         @db.Text
-  createdAt   DateTime                        @default(now())
-  updatedAt   DateTime
-}
-
-model Report {
-  id          Int           @id @default(autoincrement())
-  userId      Int
-  facilityId  Int
-  category    String
-  description String        @db.Text
-  photoUrl    String?
-  status      Report_status @default(PENDING)
-  notes       String?       @db.Text
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime
-  Facility    Facility      @relation(fields: [facilityId], references: [id])
-  User        User          @relation(fields: [userId], references: [id])
-
-  @@index([facilityId], map: "Report_facilityId_fkey")
-  @@index([userId], map: "Report_userId_fkey")
+  @@index([status])
 }
 
 model Reservation {
-  id                 Int                @id @default(autoincrement())
+  id                 Int               @id @default(autoincrement())
   userId             Int
   facilityId         Int
-  start_time         DateTime           @db.DateTime(0)
-  end_time           DateTime           @db.DateTime(0)
-  status             Reservation_status @default(PENDING)
-  purpose            String             @db.Text
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime
+  startTime          DateTime          @map("start_time") @db.DateTime(0)
+  endTime            DateTime          @map("end_time") @db.DateTime(0)
+  purpose            String            @db.Text
+  status             ReservationStatus @default(PENDING)
   cancelledAt        DateTime?
-  cancellationReason String?            @db.Text
-  Facility           Facility           @relation(fields: [facilityId], references: [id])
-  User               User               @relation(fields: [userId], references: [id])
+  cancellationReason String?           @db.Text
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
-  @@index([facilityId, status, start_time, end_time])
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict)
+
+  @@index([facilityId, status, startTime, endTime])
   @@index([userId, createdAt])
 }
 
-model Reservation_backup_20260924 {
-  id         Int                                @id @default(autoincrement())
-  userId     Int
-  facilityId Int
-  date       DateTime
-  startTime  String
-  endTime    String
-  status     Reservation_backup_20260924_status @default(PENDING)
-  purpose    String?                            @db.Text
-  createdAt  DateTime                           @default(now())
-  updatedAt  DateTime
+model Report {
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  facilityId  Int
+  category    String
+  description String       @db.Text
+  photoUrl    String?
+  status      ReportStatus @default(PENDING)
+  notes       String?      @db.Text
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  @@index([facilityId], map: "Reservation_facilityId_fkey")
-  @@index([userId], map: "Reservation_userId_fkey")
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([facilityId], map: "Report_facilityId_fkey")
+  @@index([userId], map: "Report_userId_fkey")
 }
 
 enum Role {
@@ -146,28 +120,14 @@ enum JenisUser {
   STAF
 }
 
-enum Reservation_status {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
-}
-
-enum Report_status {
+enum ReportStatus {
   PENDING
   IN_PROGRESS
   RESOLVED
   CLOSED
 }
 
-enum Reservation_backup_20260924_status {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
-}
-
-enum Facility_type {
+enum FacilityType {
   CLASSROOM
   HALL
   LABORATORY
@@ -175,21 +135,15 @@ enum Facility_type {
   FIELD
 }
 
-enum Facility_backup_20260924_type {
-  RUANGAN
-  LABORATORIUM
-  AUDITORIUM
-  AULA
-}
-
-enum Facility_status {
+enum FacilityStatus {
   ACTIVE
   MAINTENANCE
   INACTIVE
 }
 
-enum Facility_backup_20260924_status {
-  ACTIVE
-  INACTIVE
-  MAINTENANCE
+enum ReservationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }

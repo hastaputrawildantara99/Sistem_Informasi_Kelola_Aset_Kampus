@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Bell, LogIn, UserCircle } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 type NavbarProps = {
   user?: {
@@ -81,33 +82,13 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
             p-1
           "
         >
-          <MenuItem
-            href="/dashboard/katalog"
-            active={pathname?.startsWith("/dashboard/katalog")}
-          >
-            Katalog Fasilitas
-          </MenuItem>
+          <MenuItem href="/">Katalog Fasilitas</MenuItem>
 
-          <MenuItem
-            href="/dashboard/reservasi"
-            active={pathname?.startsWith("/dashboard/reservasi")}
-          >
-            Reservasi
-          </MenuItem>
+          <MenuItem href="/reservations">Reservasi</MenuItem>
 
-          <MenuItem
-            href="/laporan"
-            active={pathname === "/laporan" || pathname?.startsWith("/laporan/")}
-          >
-            Laporan Kerusakan
-          </MenuItem>
+          <MenuItem href="/laporan">Laporan Kerusakan</MenuItem>
 
-          <MenuItem
-            href="/bantuan"
-            active={pathname === "/bantuan" || pathname?.startsWith("/bantuan/")}
-          >
-            Bantuan
-          </MenuItem>
+          <MenuItem href="/bantuan">Bantuan</MenuItem>
         </nav>
 
         {/* RIGHT SECTION */}
@@ -239,29 +220,28 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
 // Komponen Pendukung MenuItem
 function MenuItem({
   children,
-  href,
+  href = "#",
   active,
 }: {
   children: React.ReactNode;
-  href: string;
+  href?: string;
   active?: boolean;
 }) {
+  const pathname = usePathname();
+
+  const active =
+    href !== "#" &&
+    (pathname === href ||
+      (href !== "/" && pathname.startsWith(`${href}/`)));
+
   return (
     <Link
       href={href}
-      className={`
-        rounded-full
-        px-5
-        py-2
-        text-sm
-        font-medium
-        transition-colors
-        ${
-          active
-            ? "bg-[#007A4D] text-white shadow-sm"
-            : "text-gray-700 hover:bg-white/80 hover:text-black"
-        }
-      `}
+      aria-current={active ? "page" : undefined}
+      className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${active
+          ? "bg-[#007A4D] text-white shadow-sm"
+          : "text-gray-700 hover:bg-white/80 hover:text-black"
+        }`}
     >
       {children}
     </Link>

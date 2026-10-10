@@ -34,12 +34,12 @@ export async function POST(req: NextRequest) {
         updatedAt: new Date(),
       },
       include: {
-        Facility: true,
+        facility: true,
       },
     });
 
     return NextResponse.json(
-      { message: "Laporan kerusakan berhasil dikirim", report },
+      { message: "Laporan kerusakan berhasil dikirim", report: { ...report, Facility: report.facility } },
       { status: 201 }
     );
   } catch (error) {
@@ -56,8 +56,8 @@ export async function GET() {
   try {
     const reports = await prisma.report.findMany({
       include: {
-        Facility: true,
-        User: {
+        facility: true,
+        user: {
           select: {
             id: true,
             name: true,
@@ -72,15 +72,21 @@ export async function GET() {
 
     const totalKerusakan = reports.length;
     const dalamPerbaikan = reports.filter(
-      (r) => r.status === "IN_PROGRESS" || r.Facility.status === "MAINTENANCE"
+      (r) => r.status === "IN_PROGRESS" || r.facility.status === "MAINTENANCE"
     ).length;
     const laporanBaru = reports.filter((r) => r.status === "PENDING").length;
     const diselesaikan = reports.filter(
       (r) => r.status === "RESOLVED" || r.status === "CLOSED"
     ).length;
 
+    const responseReports = reports.map(({ facility, user, ...report }) => ({
+      ...report,
+      Facility: facility,
+      User: user,
+    }));
+
     return NextResponse.json({
-      reports,
+      reports: responseReports,
       stats: {
         totalKerusakan,
         dalamPerbaikan,
