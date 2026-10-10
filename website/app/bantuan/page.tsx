@@ -181,8 +181,8 @@ export default function BantuanPage() {
                                             key={tab}
                                             onClick={() => setActiveTab(tab)}
                                             className={`px-4 py-2 rounded-full text-xs font-medium transition font-jakarta ${activeTab === tab
-                                                    ? 'bg-[#006141] text-white shadow-xs'
-                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                ? 'bg-[#006141] text-white shadow-xs'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                                 }`}
                                         >
                                             {tab}
