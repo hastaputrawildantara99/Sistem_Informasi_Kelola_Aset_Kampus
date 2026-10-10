@@ -1,6 +1,7 @@
 "use client";
 
 import Sidebar from "@/components/dashboard/sidebar";
+import PetugasTopbar from "@/components/dashboard/petugas-topbar";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -17,14 +18,14 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-type ReportStatus = "BARU" | "DIPROSES" | "SELESAI" | "DITOLAK";
-type FacilityStatus = "AKTIF" | "DALAM_PERBAIKAN";
+type ReportStatus = "PENDING" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
+type FacilityStatus = "ACTIVE" | "MAINTENANCE" | "INACTIVE";
 type FacilityConfirmationAction = "markMaintenance" | "reactivate";
 
 type DamageReport = {
-  id: string;
+  id: number;
   fasilitas: string;
   lokasi: string;
   pelapor: string;
@@ -35,19 +36,65 @@ type DamageReport = {
 };
 
 type Facility = {
-  id: string;
+  id: number;
   nama: string;
   lokasi: string;
   kategori: string;
   status: FacilityStatus;
   laporanKerusakan?: {
-    id: string;
+    id: number;
     tanggal: string;
     deskripsi: string;
   };
 };
 
-const initialReports: DamageReport[] = [
+type ApiReport = {
+  id: number;
+  category: string;
+  description: string;
+  notes: string | null;
+  status: ReportStatus;
+  createdAt: string;
+  user: { name: string };
+  facility: { id: number; name: string; location: string; type: string; status: FacilityStatus };
+};
+
+type ApiFacility = {
+  id: number;
+  name: string;
+  location: string;
+  type: string;
+  status: FacilityStatus;
+};
+
+function mapApiReport(report: ApiReport): DamageReport {
+  return {
+    id: report.id,
+    fasilitas: report.facility.name,
+    lokasi: report.facility.location,
+    pelapor: report.user.name,
+    tanggalLaporan: new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(new Date(report.createdAt)),
+    deskripsi: report.description,
+    status: report.status,
+    catatanPenyelesaian: report.notes || undefined,
+  };
+}
+
+function mapApiFacility(facility: ApiFacility): Facility {
+  return {
+    id: facility.id,
+    nama: facility.name,
+    lokasi: facility.location,
+    kategori: facility.type,
+    status: facility.status,
+  };
+}
+
+/*
+ * Data halaman ini berasal dari API Petugas. Tipe lokal hanya untuk menjaga
+ * tampilan tetap terpisah dari bentuk respons Prisma.
+ */
+/* const initialReports: DamageReport[] = [
   {
     id: "LPR-001",
     fasilitas: "Ruang Kelas A101",
@@ -121,11 +168,13 @@ const initialFacilities: Facility[] = [
     kategori: "Ruang Rapat",
     status: "AKTIF",
   },
-];
+]; */
 
 export default function PetugasLaporanPage() {
-  const [reports, setReports] = useState(initialReports);
-  const [facilities, setFacilities] = useState(initialFacilities);
+  const [reports, setReports] = useState<DamageReport[]>([]);
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [selectedReport, setSelectedReport] =
     useState<DamageReport | null>(null);
   const [selectedFacility, setSelectedFacility] =
@@ -136,21 +185,50 @@ export default function PetugasLaporanPage() {
   const [facilityConfirmationAction, setFacilityConfirmationAction] =
     useState<FacilityConfirmationAction | null>(null);
 
-  function updateReportStatus(id: string, status: ReportStatus) {
-    setReports((currentReports) =>
-      currentReports.map((report) =>
-        report.id === id
-          ? {
-              ...report,
-              status,
-              catatanPenyelesaian:
-                status === "SELESAI"
-                  ? report.catatanPenyelesaian
-                  : undefined,
-            }
-          : report
-      )
-    );
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [reportsResponse, facilitiesResponse] = await Promise.all([
+          fetch("/api/petugas/reports", { cache: "no-store" }),
+          fetch("/api/facilities", { cache: "no-store" }),
+        ]);
+        const reportsPayload = await reportsResponse.json().catch(() => null);
+        const facilitiesPayload = await facilitiesResponse.json().catch(() => null);
+        if (!reportsResponse.ok || !facilitiesResponse.ok) {
+          throw new Error(reportsPayload?.message || facilitiesPayload?.message || "Data laporan gagal dimuat.");
+        }
+
+        const loadedReports = (reportsPayload?.data as ApiReport[] || []).map(mapApiReport);
+        const loadedFacilities = (facilitiesPayload?.data as ApiFacility[] || []).map(mapApiFacility);
+        setReports(loadedReports);
+        setFacilities(loadedFacilities.map((facility) => {
+          const report = loadedReports.find((item) => item.fasilitas === facility.nama && item.status !== "RESOLVED" && item.status !== "CLOSED");
+          return report
+            ? { ...facility, laporanKerusakan: { id: report.id, tanggal: report.tanggalLaporan, deskripsi: report.deskripsi } }
+            : facility;
+        }));
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Data laporan gagal dimuat.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    void loadData();
+  }, []);
+
+  async function updateReportStatus(id: number, status: ReportStatus, notes?: string) {
+    const response = await fetch("/api/petugas/reports", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status, notes }),
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(payload?.message || "Status laporan gagal diperbarui.");
+    setReports((currentReports) => currentReports.map((report) =>
+      report.id === id ? { ...report, status, catatanPenyelesaian: notes || report.catatanPenyelesaian } : report,
+    ));
   }
 
   function openCompletionModal(report: DamageReport) {
@@ -167,7 +245,7 @@ export default function PetugasLaporanPage() {
     setCompletionError("");
   }
 
-  function completeReport() {
+  async function completeReport() {
     if (!selectedReport) {
       return;
     }
@@ -177,19 +255,12 @@ export default function PetugasLaporanPage() {
       return;
     }
 
-    setReports((currentReports) =>
-      currentReports.map((report) =>
-        report.id === selectedReport.id
-          ? {
-              ...report,
-              status: "SELESAI",
-              catatanPenyelesaian: completionNote.trim(),
-            }
-          : report
-      )
-    );
-
-    closeCompletionModal();
+    try {
+      await updateReportStatus(selectedReport.id, "RESOLVED", completionNote.trim());
+      closeCompletionModal();
+    } catch (error) {
+      setCompletionError(error instanceof Error ? error.message : "Status laporan gagal diperbarui.");
+    }
   }
 
   function openFacilityConfirmation(
@@ -205,25 +276,29 @@ export default function PetugasLaporanPage() {
     setFacilityConfirmationAction(null);
   }
 
-  function confirmFacilityStatusChange() {
+  async function confirmFacilityStatusChange() {
     if (!selectedFacility || !facilityConfirmationAction) {
       return;
     }
 
     const nextStatus: FacilityStatus =
       facilityConfirmationAction === "markMaintenance"
-        ? "DALAM_PERBAIKAN"
-        : "AKTIF";
-
-    setFacilities((currentFacilities) =>
-      currentFacilities.map((facility) =>
-        facility.id === selectedFacility.id
-          ? { ...facility, status: nextStatus }
-          : facility
-      )
-    );
-
-    closeFacilityConfirmation();
+        ? "MAINTENANCE"
+        : "ACTIVE";
+    try {
+      const response = await fetch(`/api/petugas/facilities/${selectedFacility.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (!response.ok) throw new Error("Status fasilitas gagal diperbarui.");
+      setFacilities((currentFacilities) => currentFacilities.map((facility) =>
+        facility.id === selectedFacility.id ? { ...facility, status: nextStatus } : facility,
+      ));
+      closeFacilityConfirmation();
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Status fasilitas gagal diperbarui.");
+    }
   }
 
   return (
@@ -240,8 +315,10 @@ export default function PetugasLaporanPage() {
         }}
       />
 
-      <main className="ml-[230px] min-h-screen bg-[#f7f9fc] px-8 py-7 text-gray-900">
-        <section className="mb-8">
+      <main className="ml-[230px] min-h-screen bg-[#f4f3ff] px-7 pb-10 pt-[98px] text-gray-900">
+        <PetugasTopbar placeholder="Cari nama pelapor, fasilitas..." />
+
+        <section className="mx-auto mb-8 max-w-[1120px]">
           <Link
             href="/dashboard/petugas"
             className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-[#006B45] hover:underline"
@@ -270,33 +347,33 @@ export default function PetugasLaporanPage() {
           title="Laporan Kerusakan"
           description="Ubah status laporan dan simpan catatan penyelesaian saat penanganan selesai."
         >
-          <section className="mb-6 grid gap-4 md:grid-cols-4">
+          <section className="mx-auto mb-6 grid max-w-[1120px] gap-4 md:grid-cols-4">
             <SummaryCard
               title="Baru"
-              value={countReportsByStatus(reports, "BARU")}
+              value={countReportsByStatus(reports, "PENDING")}
               description="Laporan baru masuk"
             />
 
             <SummaryCard
               title="Diproses"
-              value={countReportsByStatus(reports, "DIPROSES")}
+              value={countReportsByStatus(reports, "IN_PROGRESS")}
               description="Laporan sedang ditangani"
             />
 
             <SummaryCard
               title="Selesai"
-              value={countReportsByStatus(reports, "SELESAI")}
+              value={countReportsByStatus(reports, "RESOLVED") + countReportsByStatus(reports, "CLOSED")}
               description="Laporan sudah ditutup"
             />
 
             <SummaryCard
-              title="Ditolak"
-              value={countReportsByStatus(reports, "DITOLAK")}
-              description="Laporan tidak diterima"
+              title="Ditutup"
+              value={countReportsByStatus(reports, "CLOSED")}
+              description="Laporan yang ditutup"
             />
           </section>
 
-          <section className="rounded-lg border border-gray-200 bg-white shadow-sm">
+          <section className="rounded-xl border border-slate-100 bg-white shadow-[0_4px_18px_rgba(36,48,90,0.04)]">
             <div className="border-b border-gray-100 px-5 py-4">
               <h3 className="text-lg font-bold text-gray-900">
                 Daftar Laporan
@@ -308,7 +385,7 @@ export default function PetugasLaporanPage() {
             </div>
 
             <div className="divide-y divide-gray-100">
-              {reports.map((report) => (
+              {isLoading ? <div className="p-5 text-sm text-gray-500">Memuat laporan dari database...</div> : reports.map((report) => (
                 <div
                   key={report.id}
                   className="p-5 transition hover:bg-gray-50"
@@ -379,10 +456,10 @@ export default function PetugasLaporanPage() {
                     <ReportActions
                       report={report}
                       onProcess={() =>
-                        updateReportStatus(report.id, "DIPROSES")
+                        void updateReportStatus(report.id, "IN_PROGRESS")
                       }
                       onReject={() =>
-                        updateReportStatus(report.id, "DITOLAK")
+                        void updateReportStatus(report.id, "CLOSED")
                       }
                       onComplete={() => openCompletionModal(report)}
                     />
@@ -400,7 +477,7 @@ export default function PetugasLaporanPage() {
           <section className="mb-6 grid gap-4 md:grid-cols-2">
             <SummaryCard
               title="Aktif"
-              value={countFacilitiesByStatus(facilities, "AKTIF")}
+              value={countFacilitiesByStatus(facilities, "ACTIVE")}
               description="Fasilitas tersedia untuk digunakan"
             />
 
@@ -408,13 +485,13 @@ export default function PetugasLaporanPage() {
               title="Dalam Perbaikan"
               value={countFacilitiesByStatus(
                 facilities,
-                "DALAM_PERBAIKAN"
+                "MAINTENANCE"
               )}
               description="Fasilitas sementara tidak tersedia"
             />
           </section>
 
-          <section className="rounded-lg border border-gray-200 bg-white shadow-sm">
+          <section className="rounded-xl border border-slate-100 bg-white shadow-[0_4px_18px_rgba(36,48,90,0.04)]">
             <div className="border-b border-gray-100 px-5 py-4">
               <h3 className="text-lg font-bold text-gray-900">
                 Daftar Fasilitas
@@ -426,7 +503,7 @@ export default function PetugasLaporanPage() {
             </div>
 
             <div className="divide-y divide-gray-100">
-              {facilities.map((facility) => (
+              {isLoading ? <div className="p-5 text-sm text-gray-500">Memuat fasilitas dari database...</div> : facilities.map((facility) => (
                 <div
                   key={facility.id}
                   className="p-5 transition hover:bg-gray-50"
@@ -468,7 +545,7 @@ export default function PetugasLaporanPage() {
                           icon={Wrench}
                           label="Reservasi"
                           value={
-                            facility.status === "DALAM_PERBAIKAN"
+                            facility.status === "MAINTENANCE"
                               ? "Tidak tersedia sementara"
                               : "Tersedia"
                           }
@@ -529,9 +606,8 @@ export default function PetugasLaporanPage() {
           </p>
 
           <p className="mt-1 text-sm leading-6 text-blue-800">
-            Data pada halaman ini masih berupa data contoh. Setelah modul
-            laporan dan fasilitas tersedia, status, catatan penyelesaian, dan
-            ketersediaan reservasi akan dihubungkan ke backend.
+            Data laporan dan fasilitas pada halaman ini dimuat dari database
+            melalui endpoint Petugas dan API fasilitas.
           </p>
         </section>
       </main>
@@ -577,7 +653,16 @@ function countFacilitiesByStatus(
 }
 
 function formatFacilityStatus(status: FacilityStatus) {
-  return status === "DALAM_PERBAIKAN" ? "Dalam Perbaikan" : "Aktif";
+  return status === "MAINTENANCE" ? "Dalam Perbaikan" : "Aktif";
+}
+
+function formatReportStatus(status: ReportStatus) {
+  return {
+    PENDING: "Menunggu",
+    IN_PROGRESS: "Diproses",
+    RESOLVED: "Selesai",
+    CLOSED: "Ditutup",
+  }[status];
 }
 
 function ModuleSection({
@@ -633,8 +718,7 @@ function ReportActions({
   onReject: () => void;
   onComplete: () => void;
 }) {
-  const isClosed =
-    report.status === "SELESAI" || report.status === "DITOLAK";
+  const isClosed = report.status === "RESOLVED" || report.status === "CLOSED";
 
   if (isClosed) {
     return null;
@@ -642,7 +726,7 @@ function ReportActions({
 
   return (
     <div className="flex shrink-0 flex-col gap-2 sm:flex-row xl:flex-col">
-      {report.status === "BARU" && (
+      {report.status === "PENDING" && (
         <button
           type="button"
           onClick={onProcess}
@@ -668,7 +752,7 @@ function ReportActions({
         className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
       >
         <XCircle size={17} />
-        Tolak
+          Tutup
       </button>
     </div>
   );
@@ -683,7 +767,7 @@ function FacilityActions({
   onMarkMaintenance: () => void;
   onReactivate: () => void;
 }) {
-  if (facility.status === "DALAM_PERBAIKAN") {
+  if (facility.status === "MAINTENANCE") {
     return (
       <button
         type="button"
@@ -714,26 +798,24 @@ function FacilityActions({
 
 function ReportStatusBadge({ status }: { status: ReportStatus }) {
   const badgeClassName =
-    status === "SELESAI"
+    status === "RESOLVED" || status === "CLOSED"
       ? "bg-emerald-50 text-[#006B45]"
-      : status === "DIPROSES"
+      : status === "IN_PROGRESS"
         ? "bg-blue-50 text-blue-700"
-        : status === "DITOLAK"
-          ? "bg-red-50 text-red-700"
-          : "bg-amber-50 text-amber-700";
+        : "bg-amber-50 text-amber-700";
 
   return (
     <span
       className={`rounded-full px-3 py-1 text-xs font-semibold ${badgeClassName}`}
     >
-      {status}
+      {formatReportStatus(status)}
     </span>
   );
 }
 
 function FacilityStatusBadge({ status }: { status: FacilityStatus }) {
   const badgeClassName =
-    status === "DALAM_PERBAIKAN"
+    status === "MAINTENANCE"
       ? "bg-amber-50 text-amber-700"
       : "bg-emerald-50 text-[#006B45]";
 

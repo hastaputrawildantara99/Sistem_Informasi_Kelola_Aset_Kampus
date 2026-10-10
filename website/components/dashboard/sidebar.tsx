@@ -181,17 +181,17 @@ export default function Sidebar({
               className={`
                   flex
                   items-center
-                  gap-3.5
-                  px-4
-                  py-3
-                  text-[15px]
-                  transition-all
-                  duration-200
+                  gap-3
+                  rounded-lg
+                  px-3
+                  py-2.5
+                  text-sm
+                  transition
 
                   ${
                     active
-                      ? "bg-[#dce8e1] text-[#006B45] font-bold rounded-2xl shadow-sm"
-                      : "text-white/90 hover:bg-white/10 font-medium rounded-xl"
+                      ? "bg-white text-[#006B45] font-semibold"
+                      : "text-green-50 hover:bg-white/10"
                   }
 
                 `}

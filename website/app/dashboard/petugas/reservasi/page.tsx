@@ -1,6 +1,7 @@
 "use client";
 
 import Sidebar from "@/components/dashboard/sidebar";
+import PetugasTopbar from "@/components/dashboard/petugas-topbar";
 import {
   ArrowLeft,
   Ban,
@@ -12,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type ReservationStatus =
   | "Menunggu"
@@ -34,51 +35,113 @@ type Reservation = {
   alasanPembatalan?: string;
 };
 
-const initialReservations: Reservation[] = [
-  {
-    id: "RSV-001",
-    pemohon: "Ahmad Fauzan",
-    email: "ahmad.fauzan@example.com",
-    fasilitas: "Ruang Kelas A101",
-    lokasi: "Gedung A",
-    tanggal: "25 September 2026",
-    waktu: "08.00 - 10.00",
-    tujuan: "Kegiatan diskusi kelompok",
-    status: "Menunggu",
-  },
-  {
-    id: "RSV-002",
-    pemohon: "Siti Rahma",
-    email: "siti.rahma@example.com",
-    fasilitas: "Laboratorium Komputer 2",
-    lokasi: "Gedung Laboratorium",
-    tanggal: "25 September 2026",
-    waktu: "10.00 - 12.00",
-    tujuan: "Praktikum dan pengerjaan tugas",
-    status: "Menunggu",
-  },
-  {
-    id: "RSV-003",
-    pemohon: "Budi Santoso",
-    email: "budi.santoso@example.com",
-    fasilitas: "Aula Kampus",
-    lokasi: "Gedung Serbaguna",
-    tanggal: "26 September 2026",
-    waktu: "13.00 - 15.00",
-    tujuan: "Seminar mahasiswa",
-    status: "Menunggu",
-  },
-];
+type ApiReservation = {
+  id: number;
+  startTime: string;
+  endTime: string;
+  purpose: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  user: {
+    name: string;
+    email: string;
+  };
+  facility: {
+    name: string;
+    building: string;
+    location: string;
+  };
+};
+
+type ApiPayload<T> = {
+  data?: T;
+  message?: string;
+};
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "long",
+  }).format(new Date(value));
+}
+
+function formatTimeRange(startTime: string, endTime: string) {
+  const formatter = new Intl.DateTimeFormat("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `${formatter.format(new Date(startTime))} - ${formatter.format(
+    new Date(endTime),
+  )}`;
+}
+
+function mapApiReservation(reservation: ApiReservation): Reservation {
+  return {
+    id: String(reservation.id),
+    pemohon: reservation.user.name,
+    email: reservation.user.email,
+    fasilitas: reservation.facility.name,
+    lokasi: `${reservation.facility.building} - ${reservation.facility.location}`,
+    tanggal: formatDate(reservation.startTime),
+    waktu: formatTimeRange(reservation.startTime, reservation.endTime),
+    tujuan: reservation.purpose,
+    status:
+      reservation.status === "APPROVED"
+        ? "Disetujui"
+        : reservation.status === "REJECTED"
+          ? "Ditolak"
+          : reservation.status === "CANCELLED"
+            ? "DIBATALKAN"
+            : "Menunggu",
+  };
+}
 
 export default function PetugasReservasiPage() {
-  const [reservations, setReservations] = useState(initialReservations);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [selectedReservation, setSelectedReservation] =
     useState<Reservation | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [rejectionError, setRejectionError] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
   const [cancellationError, setCancellationError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const loadReservations = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch("/api/petugas/reservations", {
+        method: "GET",
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | ApiPayload<ApiReservation[]>
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Antrean reservasi gagal dimuat.");
+      }
+
+      setReservations((payload?.data || []).map(mapApiReservation));
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Antrean reservasi gagal dimuat.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadReservations();
+  }, [loadReservations]);
 
   const pendingReservations = reservations.filter(
     (reservation) => reservation.status === "Menunggu"
@@ -87,44 +150,84 @@ export default function PetugasReservasiPage() {
     (reservation) => reservation.status !== "Menunggu"
   );
 
-  function approveReservation(id: string) {
-    setReservations((currentReservations) =>
-      currentReservations.map((reservation) =>
-        reservation.id === id
-          ? { ...reservation, status: "Disetujui" }
-          : reservation
-      )
-    );
+  async function approveReservation(id: string) {
+    if (actionLoadingId) {
+      return;
+    }
 
-    setSelectedReservation(null);
+    setActionLoadingId(id);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const response = await fetch(`/api/petugas/reservations/${id}/approve`, {
+        method: "PATCH",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | ApiPayload<ApiReservation>
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Reservasi gagal disetujui.");
+      }
+
+      setSuccessMessage(payload?.message || "Reservasi berhasil disetujui.");
+      await loadReservations();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Reservasi gagal disetujui.",
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
   }
 
   function openRejectModal(reservation: Reservation) {
     setSelectedReservation(reservation);
     setRejectionReason("");
+    setRejectionError("");
     setShowRejectModal(true);
   }
 
-  function rejectReservation() {
+  async function rejectReservation() {
     if (!selectedReservation || !rejectionReason.trim()) {
+      setRejectionError("Alasan penolakan wajib diisi.");
       return;
     }
 
-    setReservations((currentReservations) =>
-      currentReservations.map((reservation) =>
-        reservation.id === selectedReservation.id
-          ? {
-              ...reservation,
-              status: "Ditolak",
-              alasanPenolakan: rejectionReason.trim(),
-            }
-          : reservation
-      )
-    );
+    const reservationId = selectedReservation.id;
+    setActionLoadingId(reservationId);
+    setErrorMessage("");
+    setSuccessMessage("");
+    setRejectionError("");
 
-    setShowRejectModal(false);
-    setSelectedReservation(null);
-    setRejectionReason("");
+    try {
+      const response = await fetch(
+        `/api/petugas/reservations/${reservationId}/reject`,
+        { method: "PATCH" },
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | ApiPayload<ApiReservation>
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Reservasi gagal ditolak.");
+      }
+
+      setSuccessMessage(
+        `${payload?.message || "Reservasi berhasil ditolak."} Alasan penolakan belum disimpan oleh endpoint saat ini.`,
+      );
+      setShowRejectModal(false);
+      setSelectedReservation(null);
+      setRejectionReason("");
+      await loadReservations();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Reservasi gagal ditolak.",
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
   }
 
   function openCancelModal(reservation: Reservation) {
@@ -180,8 +283,10 @@ export default function PetugasReservasiPage() {
         }}
       />
 
-      <main className="ml-[230px] min-h-screen bg-[#f7f9fc] px-8 py-7 text-gray-900">
-        <section className="mb-8">
+      <main className="ml-[230px] min-h-screen bg-[#f4f3ff] px-7 pb-10 pt-[98px] text-gray-900">
+        <PetugasTopbar placeholder="Cari nomor reservasi, fasilitas..." />
+
+        <section className="mx-auto mb-8 max-w-[1120px]">
           <Link
             href="/dashboard/petugas"
             className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-[#006B45] hover:underline"
@@ -206,7 +311,7 @@ export default function PetugasReservasiPage() {
           </div>
         </section>
 
-        <section className="mb-6 grid gap-4 md:grid-cols-4">
+        <section className="mx-auto mb-6 grid max-w-[1120px] gap-4 md:grid-cols-4">
           <SummaryCard
             title="Menunggu"
             value={reservations.filter(
@@ -240,7 +345,19 @@ export default function PetugasReservasiPage() {
           />
         </section>
 
-        <section className="rounded-lg border border-gray-200 bg-white shadow-sm">
+        {errorMessage && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-800">
+            {errorMessage}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-800">
+            {successMessage}
+          </div>
+        )}
+
+        <section className="mx-auto max-w-[1120px] rounded-xl border border-slate-100 bg-white shadow-[0_4px_18px_rgba(36,48,90,0.04)]">
           <div className="border-b border-gray-100 px-5 py-4">
             <h2 className="text-lg font-bold text-gray-900">
               Antrian Reservasi
@@ -251,7 +368,11 @@ export default function PetugasReservasiPage() {
             </p>
           </div>
 
-          {pendingReservations.length === 0 ? (
+          {isLoading ? (
+            <div className="px-5 py-12 text-center text-sm text-gray-500">
+              Memuat antrean reservasi...
+            </div>
+          ) : pendingReservations.length === 0 ? (
             <div className="px-5 py-12 text-center">
               <CalendarDays
                 size={40}
@@ -328,15 +449,19 @@ export default function PetugasReservasiPage() {
                       <button
                         type="button"
                         onClick={() => approveReservation(reservation.id)}
+                        disabled={actionLoadingId !== null}
                         className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#006B45] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#005538]"
                       >
                         <Check size={17} />
-                        Setujui
+                        {actionLoadingId === reservation.id
+                          ? "Memproses..."
+                          : "Setujui"}
                       </button>
 
                       <button
                         type="button"
                         onClick={() => openRejectModal(reservation)}
+                        disabled={actionLoadingId !== null}
                         className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
                       >
                         <X size={17} />
@@ -350,7 +475,7 @@ export default function PetugasReservasiPage() {
           )}
         </section>
 
-        <section className="mt-6 rounded-lg border border-gray-200 bg-white shadow-sm">
+        <section className="mx-auto mt-6 max-w-[1120px] rounded-xl border border-slate-100 bg-white shadow-[0_4px_18px_rgba(36,48,90,0.04)]">
           <div className="border-b border-gray-100 px-5 py-4">
             <h2 className="text-lg font-bold text-gray-900">
               Reservasi Diproses
@@ -450,16 +575,15 @@ export default function PetugasReservasiPage() {
           )}
         </section>
 
-        <section className="mt-6 rounded-lg border border-blue-100 bg-blue-50 px-5 py-4">
+        <section className="mx-auto mt-6 max-w-[1120px] rounded-xl border border-blue-100 bg-blue-50 px-5 py-4">
           <p className="text-sm font-semibold text-blue-900">
             Catatan integrasi
           </p>
 
           <p className="mt-1 text-sm leading-6 text-blue-800">
-            Data pada halaman ini masih berupa data contoh. Setelah modul
-            reservasi tersedia, data contoh akan diganti dengan data
-            Reservation dari database dan proses persetujuan akan dihubungkan
-            ke backend.
+            Daftar dan proses persetujuan di halaman ini sudah terhubung ke
+            backend. Alasan penolakan belum disimpan karena endpoint reject
+            saat ini hanya mengubah status reservasi.
           </p>
         </section>
       </main>
@@ -510,12 +634,17 @@ export default function PetugasReservasiPage() {
                 rows={4}
                 className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-[#006B45] focus:ring-2 focus:ring-emerald-100"
               />
+
+              {rejectionError && (
+                <p className="mt-2 text-sm text-red-600">{rejectionError}</p>
+              )}
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setShowRejectModal(false)}
+                disabled={actionLoadingId !== null}
                 className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
                 Batal
@@ -524,10 +653,12 @@ export default function PetugasReservasiPage() {
               <button
                 type="button"
                 onClick={rejectReservation}
-                disabled={!rejectionReason.trim()}
+                disabled={!rejectionReason.trim() || actionLoadingId !== null}
                 className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Tolak Reservasi
+                {actionLoadingId === selectedReservation.id
+                  ? "Memproses..."
+                  : "Tolak Reservasi"}
               </button>
             </div>
           </div>
