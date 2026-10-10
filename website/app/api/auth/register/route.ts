@@ -58,6 +58,8 @@ export async function POST(req: Request) {
         role: "USER",
 
         jenisUser,
+
+        verified: false,
       },
     });
 
