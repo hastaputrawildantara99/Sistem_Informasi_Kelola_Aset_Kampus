@@ -20,12 +20,9 @@ model User {
   verified    Boolean       @default(false)
   dosen       Dosen?
   mahasiswa   Mahasiswa?
-  Report      Report[]
-  Reservation Reservation[]
-  staf        Staf?
-  
   reservations Reservation[]
   reports      Report[]
+  staf        Staf?
 }
 
 model Mahasiswa {
@@ -104,8 +101,8 @@ model Report {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  User     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  Facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([facilityId], map: "Report_facilityId_fkey")
   @@index([userId], map: "Report_userId_fkey")
@@ -128,4 +125,25 @@ enum ReportStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum FacilityType {
+  CLASSROOM
+  HALL
+  LABORATORY
+  EQUIPMENT
+  FIELD
+}
+
+enum FacilityStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum ReservationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
