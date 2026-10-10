@@ -97,11 +97,7 @@ export default function AdminDashboardPage() {
   const [facilities, setFacilities] = useState<FacilityItem[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
-  // Modal states
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<'pengguna' | 'petugas'>('pengguna');
-  const [formData, setFormData] = useState({ name: '', email: '', nip: '', role: 'Mahasiswa' });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
 
   // Filters
   const [buildingFilter, setBuildingFilter] = useState('Semua Gedung');
@@ -285,43 +281,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Add User / Staff directly to Database
-  const handleModalSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setIsSubmitting(true);
-      const isPetugas = modalType === 'petugas';
-      const role = isPetugas ? 'PETUGAS' : 'USER';
-      const type = isPetugas ? 'STAF' : (formData.role.toUpperCase() === 'DOSEN' ? 'DOSEN' : 'MAHASISWA');
 
-      const res = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          identityNumber: formData.nip,
-          role,
-          type,
-          password: 'password123',
-        }),
-      });
-
-      const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result.error || 'Gagal menambahkan data');
-      }
-
-      setIsModalOpen(false);
-      setFormData({ name: '', email: '', nip: '', role: 'Mahasiswa' });
-      showToast(`${isPetugas ? 'Petugas' : 'Pengguna'} baru berhasil ditambahkan ke database`, 'success');
-      fetchDashboardData();
-    } catch (err: any) {
-      showToast(err.message || 'Terjadi kesalahan saat menambah data', 'error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const downloadFile = (filename: string, content: string, type: string) => {
     const blob = new Blob([content], { type });
@@ -430,52 +390,7 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Modal Tambah Pengguna / Petugas */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-gray-900">
-                Tambah {modalType === 'pengguna' ? 'Pengguna' : 'Petugas'} Baru
-              </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleModalSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
-                <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006B45]" placeholder="Masukkan nama..." />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006B45]" placeholder="email@kampus.ac.id" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">NIM / NIP / Username</label>
-                <input required type="text" value={formData.nip} onChange={e => setFormData({...formData, nip: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006B45]" placeholder="Masukkan nomor identitas..." />
-              </div>
-              {modalType === 'pengguna' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Peran Civitas</label>
-                  <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#006B45]">
-                    <option value="Mahasiswa">Mahasiswa</option>
-                    <option value="Dosen">Dosen</option>
-                    <option value="Staff Lab">Staff Lab</option>
-                  </select>
-                </div>
-              )}
-              <div className="pt-2 flex justify-end gap-2">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">Batal</button>
-                <button type="submit" disabled={isSubmitting} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#006B45] hover:bg-[#0D7C55] rounded-lg transition-colors disabled:opacity-50">
-                  {isSubmitting && <Loader2 size={15} className="animate-spin" />}
-                  {isSubmitting ? 'Menyimpan...' : 'Simpan'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+
 
       {/* SECTION 1: Header */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -615,20 +530,7 @@ export default function AdminDashboardPage() {
             </div>
             <p className="text-sm text-gray-500">Daftar calon pengguna yang mengajukan validasi akun untuk akses fasilitas laboratorium.</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => { setModalType('pengguna'); setIsModalOpen(true); }} 
-              className="px-4 py-2 text-sm font-medium text-[#006B45] bg-white border border-[#006B45] rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" /> Tambah Pengguna
-            </button>
-            <button 
-              onClick={() => { setModalType('petugas'); setIsModalOpen(true); }}
-              className="px-4 py-2 text-sm font-medium text-white bg-[#006B45] hover:bg-[#007A4D] rounded-lg transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" /> Tambah Petugas
-            </button>
-          </div>
+
         </div>
 
         <div className="overflow-x-auto">
