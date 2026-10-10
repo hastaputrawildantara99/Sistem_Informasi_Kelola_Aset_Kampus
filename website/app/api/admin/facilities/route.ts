@@ -40,7 +40,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, code, building, floor, capacity, type, status, description } = body;
+    const { name, code, building, floor, location, capacity, type, status, description } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Nama fasilitas wajib diisi' }, { status: 400 });
