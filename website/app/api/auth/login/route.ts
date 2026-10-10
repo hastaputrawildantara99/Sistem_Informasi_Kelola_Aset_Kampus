@@ -48,6 +48,19 @@ export async function POST(req: Request) {
       );
     }
 
+    // Cek apakah akun sudah disetujui admin
+    if (!user.verified) {
+      return NextResponse.json(
+        {
+          message:
+            "Akun Anda belum disetujui oleh admin. Silakan tunggu proses verifikasi sebelum login.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
     // buat JWT
     const token = await createToken({
       id: user.id,
