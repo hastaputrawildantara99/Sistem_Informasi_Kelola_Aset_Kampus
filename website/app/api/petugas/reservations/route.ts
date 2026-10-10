@@ -54,6 +54,8 @@ export async function GET(request: Request) {
         endTime: true,
         purpose: true,
         status: true,
+        cancelledAt: true,
+        cancellationReason: true,
         createdAt: true,
         updatedAt: true,
         user: {
