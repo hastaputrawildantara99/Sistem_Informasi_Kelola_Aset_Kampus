@@ -2,11 +2,11 @@ import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 
-// POST: Buat Laporan Kerusakan Baru (User Story 6)
+// POST: Buat Laporan Kerusakan Baru
 export async function POST(req: NextRequest) {
   try {
     const user: any = await getCurrentUser();
-    if (!user) {
+    if (!user || !user.id) {
       return NextResponse.json(
         { message: "Anda harus login terlebih dahulu" },
         { status: 401 }
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const report = await prisma.report.create({
+    const report = await (prisma.report as any).create({
       data: {
         userId: Number(user.id),
         facilityId: Number(facilityId),
@@ -51,53 +51,52 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET: Ambil Semua Laporan Publik & Statistik (User Story 7 & Dashboard)
-export async function GET() {
+// GET: Ambil Laporan Khusus Pengguna Yang Sedang Login
+export async function GET(req: NextRequest) {
   try {
-    const reports = await prisma.report.findMany({
+    const user: any = await getCurrentUser();
+
+    if (!user || !user.id) {
+      return NextResponse.json(
+        { message: "Anda harus login terlebih dahulu", reports: [] },
+        { status: 401 }
+      );
+    }
+
+    const userIdNum = Number(user.id);
+    if (isNaN(userIdNum)) {
+      return NextResponse.json(
+        { message: "ID User tidak valid", reports: [] },
+        { status: 400 }
+      );
+    }
+
+    // Ambil laporan HANYA milik user yang sedang login
+    const reports: any[] = await (prisma.report as any).findMany({
+      where: {
+        userId: userIdNum,
+      },
       include: {
         facility: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            jenisUser: true,
-          },
-        },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    const totalKerusakan = reports.length;
-    const dalamPerbaikan = reports.filter(
-      (r) => r.status === "IN_PROGRESS" || r.facility.status === "MAINTENANCE"
-    ).length;
-    const laporanBaru = reports.filter((r) => r.status === "PENDING").length;
-    const diselesaikan = reports.filter(
-      (r) => r.status === "RESOLVED" || r.status === "CLOSED"
-    ).length;
-
-    const responseReports = reports.map(({ facility, user, ...report }) => ({
-      ...report,
-      Facility: facility,
-      User: user,
-    }));
+    const responseReports = reports.map((item: any) => {
+      const { facility, ...report } = item;
+      return {
+        ...report,
+        Facility: facility,
+      };
+    });
 
     return NextResponse.json({
       reports: responseReports,
-      stats: {
-        totalKerusakan,
-        dalamPerbaikan,
-        laporanBaru,
-        diselesaikan,
-      },
     });
   } catch (error) {
-    console.error("GET REPORTS ERROR:", error);
+    console.error("GET MY REPORTS ERROR:", error);
     return NextResponse.json(
-      { message: "Terjadi kesalahan server saat mengambil data laporan" },
+      { message: "Terjadi kesalahan server saat mengambil laporan Anda", reports: [] },
       { status: 500 }
     );
   }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Wrench,
@@ -31,6 +32,8 @@ type ReportItem = {
 };
 
 export default function LaporanKerusakanPage() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [stats, setStats] = useState({
     totalKerusakan: 0,
@@ -41,10 +44,27 @@ export default function LaporanKerusakanPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // Ambil Semua Laporan Publik & Statistik Real-Time dari Database (GET /api/reports)
+  // Cek Sesi Login User (Wajib Login) & Ambil Data Laporan Publik + Statistik
   useEffect(() => {
-    async function fetchPublicReports() {
+    async function checkAuthAndFetchReports() {
       try {
+        // 1. Cek Sesi Login User
+        const authRes = await fetch("/api/auth/me");
+        if (!authRes.ok) {
+          // Menggunakan replace agar tombol Back browser tidak terjebak loop
+          router.replace("/login");
+          return;
+        }
+
+        const authData = await authRes.json();
+        if (!authData.user) {
+          router.replace("/login");
+          return;
+        }
+
+        setCurrentUser(authData.user);
+
+        // 2. Ambil Data Laporan Publik & Statistik Real-Time
         const res = await fetch("/api/reports");
         if (res.ok) {
           const data = await res.json();
@@ -63,16 +83,26 @@ export default function LaporanKerusakanPage() {
       }
     }
 
-    fetchPublicReports();
-  }, []);
+    checkAuthAndFetchReports();
+  }, [router]);
+
+  // Indikator Loading saat memverifikasi sesi & data
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F2F3FF] flex flex-col justify-center items-center font-jakarta">
+        <Loader2 className="w-8 h-8 text-[#0D7C55] animate-spin mb-2" />
+        <p className="text-sm font-semibold text-slate-600">Memverifikasi sesi & memuat data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F2F3FF] text-[#131B2E] font-inter flex flex-col justify-between pt-[64px]">
       <div>
-        {/* NAVBAR */}
-        <Navbar />
+        {/* NAVBAR BERIDENTITAS USER */}
+        <Navbar user={currentUser} />
 
-        {/*  MAIN CONTENT */}
+        {/* MAIN CONTENT */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 space-y-6">
           {/* Breadcrumb & Header Title */}
           <div className="space-y-2">
@@ -113,7 +143,7 @@ export default function LaporanKerusakanPage() {
             </div>
           </div>
 
-          {/* STATS CARDS REAL-TIME*/}
+          {/* STATS CARDS REAL-TIME */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div className="space-y-1">
@@ -218,13 +248,8 @@ export default function LaporanKerusakanPage() {
               </div>
             )}
 
-            {/* Loading Indicator */}
-            {loading ? (
-              <div className="flex items-center justify-center p-12 text-xs text-slate-500 gap-2 font-jakarta">
-                <Loader2 className="w-4 h-4 animate-spin text-[#0D7C55]" />
-                <span>Memuat data semua laporan publik...</span>
-              </div>
-            ) : reports.length === 0 ? (
+            {/* Empty State */}
+            {reports.length === 0 && !errorMsg ? (
               <div className="text-center py-12 space-y-2">
                 <FileText className="w-10 h-10 text-slate-300 mx-auto" />
                 <p className="text-xs text-slate-500 font-medium font-jakarta">
@@ -232,7 +257,7 @@ export default function LaporanKerusakanPage() {
                 </p>
               </div>
             ) : (
-              /* TABEL PUBLIK (Tanpa Kolom Aksi) */
+              /* TABEL PUBLIK */
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -248,9 +273,9 @@ export default function LaporanKerusakanPage() {
                     {reports.map((item) => (
                       <tr key={item.id} className="hover:bg-[#F2F3FF]/30 transition-colors">
                         <td className="py-4 px-4 font-bold text-[#131B2E]">
-                          <p className="font-bold text-[#131B2E] font-jakarta">{item.Facility.name}</p>
+                          <p className="font-bold text-[#131B2E] font-jakarta">{item.Facility?.name || "-"}</p>
                           <p className="text-[11px] text-[#3E4942]">
-                            {item.Facility.building}, {item.Facility.floor} ({item.Facility.location})
+                            {item.Facility?.building}, {item.Facility?.floor} ({item.Facility?.location})
                           </p>
                         </td>
                         <td className="py-4 px-4 text-[#3E4942]">
@@ -268,18 +293,17 @@ export default function LaporanKerusakanPage() {
                         </td>
                         <td className="py-4 px-4 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                            {item.Facility.status}
+                            {item.Facility?.status || "RUSAK"}
                           </span>
                         </td>
                         <td className="py-4 px-4 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-                              item.status === "PENDING"
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${item.status === "PENDING"
                                 ? "bg-purple-50 text-purple-700 border border-purple-200"
                                 : item.status === "IN_PROGRESS"
-                                ? "bg-blue-50 text-blue-700 border border-blue-200"
-                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            }`}
+                                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                  : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              }`}
                           >
                             {item.status}
                           </span>
