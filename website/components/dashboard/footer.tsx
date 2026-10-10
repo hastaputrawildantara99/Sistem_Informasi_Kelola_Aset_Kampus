@@ -16,10 +16,9 @@ export default function DashboardFooter() {
     <footer className="w-full bg-[#f8f9fc] text-slate-700 border-t border-slate-200 mt-auto">
       {/* Bagian Konten Utama */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Menggunakan grid-cols-5 agar lebar kolom pertama terkontrol dan tidak membuat gap jauh */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
 
-          {/* Kolom 1: Logo & Deskripsi (Mengambil 2 span grid) */}
+          {/* Logo & Deskripsi*/}
           <div className="space-y-4 lg:col-span-2">
             <div className="inline-block">
               <img
@@ -41,7 +40,7 @@ export default function DashboardFooter() {
             </div>
           </div>
 
-          {/* Kolom 2: Universitas Diponegoro */}
+          {/*Universitas Diponegoro */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-jakarta">
               UNIVERSITAS DIPONEGORO
@@ -63,7 +62,7 @@ export default function DashboardFooter() {
             </ul>
           </div>
 
-          {/* Kolom 3: Layanan Operasional */}
+          {/*Layanan Operasional */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-jakarta">
               LAYANAN OPERASIONAL
@@ -74,7 +73,7 @@ export default function DashboardFooter() {
                 <Clock className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-semibold text-slate-800">Senin - Jumat</p>
-                  <p className="text-[11px] text-slate-500">07.30 - 16.30 WIB</p>
+                  <p className="text-[11px] text-slate-500">07.30 - 20.00 WIB</p>
                 </div>
               </li>
               <li className="flex items-start gap-2">
@@ -87,26 +86,25 @@ export default function DashboardFooter() {
             </ul>
           </div>
 
-          {/* Kolom 4: Tautan Cepat */}
+          {/*Tautan Cepat */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 font-jakarta">
               TAUTAN CEPAT
             </h3>
-
             <ul className="space-y-2 text-xs font-inter">
               <li>
-                <Link href="/dashboard/katalog" className="text-slate-600 hover:text-emerald-700 transition-colors">
-                  Katalog Ruang & Sarana
+                <Link href="/" className="text-slate-600 hover:text-emerald-700 transition-colors">
+                  Katalog Fasilitas
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard/jadwal" className="text-slate-600 hover:text-emerald-700 transition-colors">
-                  Jadwal Kalender Pemakaian
+                <Link href="/reservations" className="text-slate-600 hover:text-emerald-700 transition-colors">
+                  Reservasi
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard/sop" className="text-slate-600 hover:text-emerald-700 transition-colors">
-                  SOP & Standar Biaya Sewa
+                <Link href="/laporan" className="text-slate-600 hover:text-emerald-700 transition-colors">
+                  Laporan Kerusakan
                 </Link>
               </li>
               <li>
@@ -120,7 +118,7 @@ export default function DashboardFooter() {
         </div>
       </div>
 
-      {/* Bagian Copyright Bawah */}
+      {/*Copyright*/}
       <div className="border-t border-slate-200 bg-[#f1f3f9] py-3">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-[11px] text-slate-500 font-inter">
