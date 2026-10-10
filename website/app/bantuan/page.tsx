@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
     HelpCircle,
@@ -27,8 +27,27 @@ export default function BantuanPage() {
     const [activeTab, setActiveTab] = useState('Semua');
     const [openFaq, setOpenFaq] = useState<number | null>(1);
     const [copied, setCopied] = useState(false);
+    const [currentUser, setCurrentUser] = useState<any>(null);
 
     const phoneNumber = '+62 812-3456-7890';
+
+    // Ambil sesi user jika pengguna sudah login (tetap bisa diakses publik jika belum login)
+    useEffect(() => {
+        async function fetchUserSession() {
+            try {
+                const res = await fetch("/api/auth/me");
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.user) {
+                        setCurrentUser(data.user);
+                    }
+                }
+            } catch (err) {
+                console.error("Gagal mengambil sesi user:", err);
+            }
+        }
+        fetchUserSession();
+    }, []);
 
     const handleCopyPhone = () => {
         navigator.clipboard.writeText(phoneNumber);
@@ -79,8 +98,8 @@ export default function BantuanPage() {
     return (
         <div className="min-h-screen bg-[#F2F3FF] text-[#131B2E] font-inter flex flex-col justify-between">
             <div>
-                {/* ================= NAVBAR DASHBOARD ================= */}
-                <Navbar />
+                {/* ================= NAVBAR DASHBOARD (Dinamis: Publik / Login) ================= */}
+                <Navbar user={currentUser} />
 
                 {/* ================= MAIN CONTENT ================= */}
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 space-y-6">
@@ -234,7 +253,7 @@ export default function BantuanPage() {
                                 </div>
                             </div>
 
-                            {/* Bottom Card: Belum menemukan solusi? -> Link ke WhatsApp */}
+                            {/* Bottom Card: Belum menemukan solusi? -> Link WhatsApp */}
                             <div className="bg-gradient-to-r from-slate-100 to-emerald-50/50 rounded-3xl border border-slate-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
                                 <div>
                                     <h3 className="text-base font-bold text-[#131B2E] mb-1 font-jakarta">Belum menemukan solusi yang tepat?</h3>
@@ -332,7 +351,7 @@ export default function BantuanPage() {
                                 </div>
                             </div>
 
-                            {/* Ingin panduan lengkap? -> Unduh PDF Langsung */}
+                            {/* Ingin panduan lengkap? -> PDF Direct Download */}
                             <div className="bg-emerald-50/60 border border-emerald-100 rounded-3xl p-6 shadow-sm">
                                 <div className="flex items-center space-x-2 mb-2 text-emerald-900">
                                     <BookOpen className="w-5 h-5" />
