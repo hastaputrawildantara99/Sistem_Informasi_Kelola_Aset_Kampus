@@ -1,4 +1,5 @@
 import Navbar from "@/components/dashboard/navbar";
+import Footer from "@/components/dashboard/footer";
 import { getCurrentUser } from "@/lib/auth";
 import FacilityList from "@/components/facilities/facility-list";
 
