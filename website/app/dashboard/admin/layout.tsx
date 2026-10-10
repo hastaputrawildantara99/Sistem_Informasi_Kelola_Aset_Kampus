@@ -8,7 +8,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <>
       <Sidebar
         role="admin"
-        activeMenu="Dashboard Overview"
         user={{
           name: user?.name || "",
           email: user?.email || "",

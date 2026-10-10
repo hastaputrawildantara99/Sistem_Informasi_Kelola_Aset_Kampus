@@ -105,7 +105,8 @@ export default function AdminDashboardPage() {
 
   // Filters
   const [buildingFilter, setBuildingFilter] = useState('Semua Gedung');
-  const [monthFilter, setMonthFilter] = useState('Bulan Ini (Oktober 2026)');
+  const [monthFilter, setMonthFilter] = useState('Bulan Ini');
+  const [availableBuildings, setAvailableBuildings] = useState<string[]>(['Semua Gedung']);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -117,8 +118,12 @@ export default function AdminDashboardPage() {
     try {
       setIsLoading(true);
       
+      const query = new URLSearchParams();
+      if (buildingFilter && buildingFilter !== 'Semua Gedung') query.append('gedung', buildingFilter);
+      if (monthFilter) query.append('bulan', monthFilter);
+
       const [statsRes, usersRes, facilitiesRes] = await Promise.all([
-        fetch('/api/admin/stats'),
+        fetch(`/api/admin/stats?${query.toString()}`),
         fetch('/api/admin/users'),
         fetch('/api/admin/facilities')
       ]);
@@ -126,6 +131,9 @@ export default function AdminDashboardPage() {
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData);
+        if (statsData.buildings && statsData.buildings.length > 0) {
+          setAvailableBuildings(statsData.buildings);
+        }
       }
 
       if (usersRes.ok) {
@@ -179,7 +187,7 @@ export default function AdminDashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [monthFilter, buildingFilter]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -327,8 +335,25 @@ export default function AdminDashboardPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Filtered Occupancy & Incidents data based on current filter
+  const filteredOccupancy = stats.occupancyData.filter(d => 
+    buildingFilter === 'Semua Gedung' || d.building === buildingFilter
+  );
+
+  const filteredIncidents = stats.incidentData.filter(d =>
+    buildingFilter === 'Semua Gedung' || d.building === buildingFilter
+  );
+
+  const currentTotalHours = filteredOccupancy.reduce((acc, curr) => acc + curr.hours, 0);
+  const currentTotalReports = filteredIncidents.reduce((acc, curr) => acc + curr.reportCount, 0);
+
+  const sortedOccupancy = [...filteredOccupancy].sort((a, b) => b.hours - a.hours);
+  const topFacility = sortedOccupancy.length > 0 && sortedOccupancy[0].hours > 0 ? sortedOccupancy[0] : null;
+
+  const maxHours = Math.max(1, ...filteredOccupancy.map(d => d.hours), 10);
+
   const getExportData = () => {
-    const items: RekapExportItem[] = stats.occupancyData.map((f) => ({
+    const items: RekapExportItem[] = filteredOccupancy.map((f) => ({
       id: f.id,
       fasilitas: f.name,
       code: f.code || `FAC-${f.id}`,
@@ -339,10 +364,10 @@ export default function AdminDashboardPage() {
       status: f.status === 'MAINTENANCE' ? 'Perlu Perbaikan' : (f.reportCount === 0 ? 'Sangat Baik' : 'Baik'),
     }));
     const exportStats: ExportStats = {
-      totalJam: stats.totalHours,
-      rataOkupansi: stats.averageOccupancy,
-      totalInsiden: stats.totalReports,
-      fasilitasTerdampak: stats.incidentData.filter(i => i.reportCount > 0).length,
+      totalJam: currentTotalHours,
+      rataOkupansi: filteredOccupancy.length > 0 ? Math.round(currentTotalHours / filteredOccupancy.length) : 0,
+      totalInsiden: currentTotalReports,
+      fasilitasTerdampak: filteredIncidents.filter(i => i.reportCount > 0).length,
     };
     return { items, exportStats, filters: { gedung: buildingFilter, bulan: monthFilter } };
   };
@@ -394,13 +419,6 @@ export default function AdminDashboardPage() {
 
   const activeFacilitiesCount = stats.activeFacilities;
   const inactiveFacilitiesCount = stats.inactiveFacilities;
-
-  // Filtered Occupancy data for chart
-  const filteredOccupancy = stats.occupancyData.filter(d => 
-    buildingFilter === 'Semua Gedung' || d.building === buildingFilter
-  );
-
-  const maxHours = Math.max(1, ...filteredOccupancy.map(d => d.hours), 10);
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 relative">
@@ -706,11 +724,10 @@ export default function AdminDashboardPage() {
                 <select 
                   value={buildingFilter}
                   onChange={(e) => setBuildingFilter(e.target.value)}
-                  className="appearance-none pl-9 pr-10 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#006B45]/20 focus:border-[#006B45]">
-                  <option value="Semua Gedung">Semua Gedung</option>
-                  <option value="Gedung B">Gedung B</option>
-                  <option value="Gedung E">Gedung E</option>
-                  <option value="Gedung Rektorat">Gedung Rektorat</option>
+                  className="appearance-none pl-9 pr-10 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#006B45]/20 focus:border-[#006B45] cursor-pointer">
+                  {availableBuildings.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
                 </select>
                 <Building2 className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -719,10 +736,11 @@ export default function AdminDashboardPage() {
                 <select 
                   value={monthFilter}
                   onChange={(e) => setMonthFilter(e.target.value)}
-                  className="appearance-none pl-9 pr-10 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#006B45]/20 focus:border-[#006B45]">
-                  <option>Bulan Ini (Oktober 2026)</option>
-                  <option>September 2026</option>
-                  <option>Agustus 2026</option>
+                  className="appearance-none pl-9 pr-10 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#006B45]/20 focus:border-[#006B45] cursor-pointer">
+                  <option value="Bulan Ini">Bulan Ini (Oktober 2026)</option>
+                  <option value="Bulan Lalu">Bulan Lalu (September 2026)</option>
+                  <option value="Tahun Ini">Tahun Ini (2026)</option>
+                  <option value="Semua Waktu">Semua Waktu</option>
                 </select>
                 <Filter className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -731,13 +749,13 @@ export default function AdminDashboardPage() {
             
             <div className="flex items-center gap-2 justify-end">
               <span className="text-xs text-gray-500 mr-1">Ekspor Rekap:</span>
-              <button onClick={exportPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-md text-xs font-medium hover:bg-rose-100 transition-colors">
-                <FileText className="w-3 h-3" /> PDF / TXT
+              <button onClick={exportPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-md text-xs font-medium hover:bg-rose-100 transition-colors cursor-pointer">
+                <FileText className="w-3 h-3" /> PDF
               </button>
-              <button onClick={exportExcel} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-md text-xs font-medium hover:bg-emerald-100 transition-colors">
+              <button onClick={exportExcel} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-md text-xs font-medium hover:bg-emerald-100 transition-colors cursor-pointer">
                 <FileText className="w-3 h-3" /> Excel
               </button>
-              <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium hover:bg-gray-200 transition-colors">
+              <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium hover:bg-gray-200 transition-colors cursor-pointer">
                 <FileText className="w-3 h-3" /> CSV
               </button>
             </div>
@@ -756,52 +774,115 @@ export default function AdminDashboardPage() {
           </div>
           <p className="text-sm text-gray-500 mb-8">Akumulasi jam penggunaan reservasi per fasilitas</p>
           
-          {/* Bar Chart Real Data */}
-          <div className="relative h-64 mt-auto mb-6 flex items-end justify-between px-2 pt-6">
-            <div className="absolute inset-0 flex flex-col justify-between text-xs text-gray-400 pb-8 z-0">
+          {/* Line Chart Real Data */}
+          <div className="relative h-64 mt-auto mb-6 px-2 pt-4">
+            {/* Gridlines */}
+            <div className="absolute inset-0 flex flex-col justify-between text-xs text-gray-400 pb-9 z-0 pointer-events-none">
               <div className="flex items-center w-full">
-                <span className="w-8 text-right mr-3">{maxHours}</span>
+                <span className="w-7 text-right mr-3 font-mono">{maxHours}</span>
                 <div className="flex-1 border-t border-dashed border-gray-200"></div>
               </div>
               <div className="flex items-center w-full">
-                <span className="w-8 text-right mr-3">{Math.round(maxHours * 0.75)}</span>
+                <span className="w-7 text-right mr-3 font-mono">{Math.round(maxHours * 0.75)}</span>
                 <div className="flex-1 border-t border-dashed border-gray-200"></div>
               </div>
               <div className="flex items-center w-full">
-                <span className="w-8 text-right mr-3">{Math.round(maxHours * 0.5)}</span>
+                <span className="w-7 text-right mr-3 font-mono">{Math.round(maxHours * 0.5)}</span>
                 <div className="flex-1 border-t border-dashed border-gray-200"></div>
               </div>
               <div className="flex items-center w-full">
-                <span className="w-8 text-right mr-3">{Math.round(maxHours * 0.25)}</span>
+                <span className="w-7 text-right mr-3 font-mono">{Math.round(maxHours * 0.25)}</span>
                 <div className="flex-1 border-t border-dashed border-gray-200"></div>
               </div>
               <div className="flex items-center w-full">
-                <span className="w-8 text-right mr-3">0</span>
-                <div className="flex-1 border-t border-solid border-gray-200"></div>
+                <span className="w-7 text-right mr-3 font-mono">0</span>
+                <div className="flex-1 border-t border-gray-200"></div>
               </div>
             </div>
 
-            {/* Bars */}
-            <div className="relative z-10 flex w-full justify-around items-end h-[calc(100%-2rem)] ml-10">
+            {/* Line Chart SVG Area */}
+            <div className="relative z-10 w-[calc(100%-2.5rem)] ml-10 h-[calc(100%-2.25rem)]">
               {filteredOccupancy.length > 0 ? (
-                filteredOccupancy.map((fac) => {
-                  const percent = Math.max(8, Math.round((fac.hours / maxHours) * 100));
+                (() => {
+                  const chartW = 500;
+                  const chartH = 170;
+                  const padX = filteredOccupancy.length > 1 ? chartW / (filteredOccupancy.length - 1) : chartW / 2;
+                  
+                  const points = filteredOccupancy.map((fac, idx) => {
+                    const x = filteredOccupancy.length === 1 ? chartW / 2 : idx * padX;
+                    const ratio = maxHours > 0 ? fac.hours / maxHours : 0;
+                    const y = chartH - (ratio * (chartH - 24)) - 10;
+                    return { x, y, fac };
+                  });
+
+                  const linePath = points.reduce((acc, curr, idx) => {
+                    if (idx === 0) return `M ${curr.x} ${curr.y}`;
+                    const prev = points[idx - 1];
+                    const cx1 = prev.x + (curr.x - prev.x) / 2;
+                    const cx2 = cx1;
+                    return `${acc} C ${cx1} ${prev.y}, ${cx2} ${curr.y}, ${curr.x} ${curr.y}`;
+                  }, '');
+
+                  const firstP = points[0];
+                  const lastP = points[points.length - 1];
+                  const areaPath = `${linePath} L ${lastP.x} ${chartH} L ${firstP.x} ${chartH} Z`;
+
                   return (
-                    <div key={fac.id} className="flex flex-col items-center group">
-                      <div 
-                        className="w-12 md:w-16 bg-gradient-to-t from-[#006B45] to-[#0D7C55] rounded-t-sm relative transition-all duration-300 group-hover:opacity-90 shadow-sm" 
-                        style={{ height: `${percent}%` }}
-                      >
-                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                          {fac.hours} jam
-                        </div>
+                    <div className="relative w-full h-full flex flex-col justify-between">
+                      {/* SVG Line & Gradient */}
+                      <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="occupancyGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#006B45" stopOpacity="0.32" />
+                            <stop offset="100%" stopColor="#006B45" stopOpacity="0.01" />
+                          </linearGradient>
+                        </defs>
+                        {/* Area */}
+                        <path d={areaPath} fill="url(#occupancyGradient)" />
+                        {/* Line */}
+                        <path d={linePath} fill="none" stroke="#006B45" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+
+                      {/* Interactive Nodes */}
+                      <div className="absolute inset-0 flex justify-between items-stretch pointer-events-none">
+                        {points.map(({ fac, y }) => {
+                          const topPercent = Math.max(0, Math.min(100, (y / chartH) * 100));
+                          return (
+                            <div key={fac.id} className="relative flex flex-col items-center flex-1">
+                              {/* Hover Point */}
+                              <div 
+                                style={{ top: `${topPercent}%` }}
+                                className="absolute -translate-y-1/2 pointer-events-auto group cursor-pointer"
+                              >
+                                <div className="w-4 h-4 rounded-full bg-white border-[3px] border-[#006B45] shadow-md group-hover:scale-125 transition-transform"></div>
+                                
+                                {/* Permanent or hover value badge */}
+                                {fac.hours > 0 ? (
+                                  <span className="absolute -top-6 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-[#006B45] text-white text-[10px] font-bold rounded shadow-sm whitespace-nowrap">
+                                    {fac.hours}j
+                                  </span>
+                                ) : null}
+
+                                {/* Tooltip */}
+                                <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[11px] font-medium py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-lg pointer-events-none z-30">
+                                  {fac.hours} Jam ({fac.name})
+                                </div>
+                              </div>
+
+                              {/* Label on X-axis */}
+                              <span 
+                                className="absolute bottom-[-22px] text-[11px] text-gray-600 font-semibold text-center w-full truncate px-1"
+                                title={`${fac.name} (${fac.code})`}
+                              >
+                                {fac.code || fac.name}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
-                      <span className="text-xs text-gray-600 font-medium mt-3 whitespace-nowrap text-center -ml-2 w-16 truncate" title={fac.name}>
-                        {fac.code || fac.name.substring(0, 8)}
-                      </span>
                     </div>
                   );
-                })
+                })()
               ) : (
                 <div className="w-full text-center text-sm text-gray-400 py-12">
                   Tidak ada data reservasi untuk filter gedung ini.
@@ -812,11 +893,11 @@ export default function AdminDashboardPage() {
           
           <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-2">
             <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-[#006B45]" />
-              <span className="font-semibold text-gray-900 text-sm">Total {stats.totalHours} Jam Terpakai</span>
+              <TrendingUp className="w-5 h-5 text-[#006B45]" />
+              <span className="font-semibold text-gray-900 text-sm">Total {currentTotalHours} Jam Terpakai</span>
             </div>
             <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
-              {filteredOccupancy[0]?.name ? `Top: ${filteredOccupancy[0].name}` : 'Semua Fasilitas'}
+              {topFacility ? `Top: ${topFacility.name} (${topFacility.hours} Jam)` : 'Tidak ada penggunaan'}
             </span>
           </div>
         </div>
@@ -826,14 +907,14 @@ export default function AdminDashboardPage() {
           <div className="flex justify-between items-start mb-1">
             <h3 className="text-lg font-bold text-gray-900">Frekuensi Laporan Kerusakan</h3>
             <span className="px-2.5 py-1 text-[10px] font-bold bg-rose-100 text-rose-700 rounded-full tracking-wide">
-              {stats.totalReports} Total Insiden
+              {currentTotalReports} Total Insiden
             </span>
           </div>
           <p className="text-sm text-gray-500 mb-6">Sebaran laporan kerusakan sarana fasilitas dari pengguna</p>
           
           <div className="space-y-4 flex-1">
-            {stats.incidentData.length > 0 ? (
-              stats.incidentData.map((item, idx) => {
+            {filteredIncidents.length > 0 ? (
+              filteredIncidents.map((item, idx) => {
                 const badgeColor = 
                   idx === 0 && item.reportCount > 0 ? 'bg-rose-100 text-rose-700' :
                   item.reportCount > 0 ? 'bg-orange-100 text-orange-700' :

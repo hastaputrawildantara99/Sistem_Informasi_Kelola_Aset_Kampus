@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const bulan = searchParams.get('bulan') || 'Bulan Ini';
+    const gedung = searchParams.get('gedung');
+
     const totalFacilities = await prisma.facility.count();
     const activeFacilities = await prisma.facility.count({ where: { status: 'ACTIVE' } });
     const inactiveFacilities = await prisma.facility.count({ 
@@ -28,9 +32,48 @@ export async function GET() {
       orderBy: { id: 'asc' },
     });
 
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
     const occupancyData = facilities.map((fac) => {
+      let filteredReservations = fac.reservations;
+      let filteredReports = fac.reports;
+
+      if (bulan === 'Bulan Ini' || bulan.includes('Bulan Ini') || bulan.includes('Oktober')) {
+        filteredReservations = filteredReservations.filter((res) => {
+          const d = new Date(res.startTime);
+          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        });
+        filteredReports = filteredReports.filter((rep) => {
+          const d = new Date(rep.createdAt);
+          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        });
+      } else if (bulan === 'Bulan Lalu' || bulan.includes('September')) {
+        const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+        filteredReservations = filteredReservations.filter((res) => {
+          const d = new Date(res.startTime);
+          return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+        });
+        filteredReports = filteredReports.filter((rep) => {
+          const d = new Date(rep.createdAt);
+          return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+        });
+      } else if (bulan === 'Tahun Ini' || bulan === '2026') {
+        filteredReservations = filteredReservations.filter((res) => {
+          const d = new Date(res.startTime);
+          return d.getFullYear() === currentYear;
+        });
+        filteredReports = filteredReports.filter((rep) => {
+          const d = new Date(rep.createdAt);
+          return d.getFullYear() === currentYear;
+        });
+      }
+      // If 'Semua Waktu', do not filter by time -> includes all historical data
+
       let totalMinutes = 0;
-      fac.reservations.forEach((res) => {
+      filteredReservations.forEach((res) => {
         // Count confirmed/approved and pending usage
         if (res.status === 'APPROVED' || res.status === 'PENDING') {
           const start = new Date(res.startTime).getTime();
@@ -47,7 +90,7 @@ export async function GET() {
         code: fac.code,
         building: fac.building,
         hours: hours || 0,
-        reportCount: fac.reports.length,
+        reportCount: filteredReports.length,
         status: fac.status,
       };
     });
@@ -63,8 +106,19 @@ export async function GET() {
       }))
       .sort((a, b) => b.reportCount - a.reportCount);
 
-    const totalHours = occupancyData.reduce((acc, curr) => acc + curr.hours, 0);
-    const totalReports = incidentData.reduce((acc, curr) => acc + curr.reportCount, 0);
+    // Apply building filter if requested
+    const filteredOccupancyData = gedung && gedung !== 'Semua Gedung'
+      ? occupancyData.filter((d) => d.building === gedung)
+      : occupancyData;
+
+    const filteredIncidentData = gedung && gedung !== 'Semua Gedung'
+      ? incidentData.filter((d) => d.building === gedung)
+      : incidentData;
+
+    const totalHours = filteredOccupancyData.reduce((acc, curr) => acc + curr.hours, 0);
+    const totalReports = filteredIncidentData.reduce((acc, curr) => acc + curr.reportCount, 0);
+
+    const buildings = Array.from(new Set(facilities.map((f) => f.building).filter(Boolean)));
 
     return NextResponse.json({
       totalFacilities,
@@ -75,12 +129,14 @@ export async function GET() {
       activeStaff,
       totalHours,
       totalReports,
-      averageOccupancy: totalFacilities > 0 ? Math.round(totalHours / totalFacilities) : 0,
+      averageOccupancy: filteredOccupancyData.length > 0 ? Math.round(totalHours / filteredOccupancyData.length) : 0,
       occupancyData,
       incidentData,
+      buildings: ['Semua Gedung', ...buildings],
     });
   } catch (error: any) {
     console.error('Error fetching admin stats:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+

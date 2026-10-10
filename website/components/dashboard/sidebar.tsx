@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -31,10 +31,11 @@ type SidebarProps = {
 
 export default function Sidebar({
   role = "admin",
-  activeMenu = "Dashboard",
+  activeMenu,
   user,
 }: SidebarProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   async function handleLogout() {
     await fetch("/api/auth/logout", {
@@ -172,7 +173,12 @@ export default function Sidebar({
         {menus.map((item) => {
           const Icon = item.icon;
 
-          const active = activeMenu === item.name;
+          // Check active based on pathname or activeMenu fallback
+          const active = pathname
+            ? (item.href === "/dashboard/admin" || item.href === "/dashboard/petugas"
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(item.href + "/") || (item.href === "/dashboard/admin/users" && pathname.startsWith("/dashboard/admin/user")))
+            : activeMenu === item.name;
 
           return (
             <Link
@@ -230,52 +236,32 @@ export default function Sidebar({
             {user?.name?.slice(0, 2).toUpperCase() || "US"}
           </div>
 
-          <div className="flex-1">
-            <p
-              className="
-        text-sm
-        font-semibold
-        "
-            >
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate text-white">
               {user?.name || "User"}
             </p>
 
-            <p
-              className="
-        text-xs
-        text-green-100
-        "
-            >
-              {user?.role || "USER"}
-            </p>
+            <div className="mt-0.5">
+              <span className="inline-block px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-800 text-emerald-100 uppercase tracking-wider">
+                {user?.role === 'ADMIN' ? 'ADMINISTRATOR' : (user?.role === 'PETUGAS' ? 'PETUGAS' : (user?.jenisUser || 'PENGGUNA'))}
+              </span>
+            </div>
 
-            <p
-              className="
-        mt-1
-        text-[11px]
-        text-green-100/80
-        "
-            >
-              {user?.email}
-            </p>
+            {user?.email && (
+              <p className="mt-1 text-[11px] text-green-100/80 truncate">
+                {user.email}
+              </p>
+            )}
 
-            <p
-              className="
-        text-[11px]
-        text-green-100/80
-        "
-            >
-              {user?.jenisUser} {user?.identifier}
-            </p>
+            {user?.identifier && (
+              <p className="text-[11px] text-green-100/80 truncate">
+                {user?.role === 'ADMIN' ? `ID: ${user.identifier}` : `${user?.jenisUser ? user.jenisUser.charAt(0) + user.jenisUser.slice(1).toLowerCase() : 'NIM/NIP'}: ${user.identifier}`}
+              </p>
+            )}
 
             <button
               onClick={handleLogout}
-              className="
-          mt-3
-          text-xs
-          text-red-200
-          hover:text-white
-        "
+              className="mt-2 text-xs text-red-200 hover:text-white transition-colors cursor-pointer"
             >
               Logout
             </button>
