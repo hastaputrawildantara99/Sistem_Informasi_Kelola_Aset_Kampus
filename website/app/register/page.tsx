@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Eye, Check } from "lucide-react";
-import { useState } from "react";
+import { Eye, EyeOff, Check } from "lucide-react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
@@ -298,7 +298,7 @@ export default function RegisterPage() {
                 onChange={setPassword}
               />
 
-              <Input
+              <PasswordInput
                 label="Konfirmasi Password"
                 placeholder="Ulangi password"
                 value={confirmPassword}
@@ -403,18 +403,22 @@ function PasswordInput({
   value?: string;
   onChange?: (value: string) => void;
 }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const inputId = useId();
+
   return (
     <div>
-      <label className="text-sm font-semibold">{label}</label>
+      <label htmlFor={inputId} className="text-sm font-semibold">{label}</label>
 
-      <div className="relative">
+      <div className="relative mt-2">
         <input
-          type="password"
+          id={inputId}
+          type={showPassword ? "text" : "password"}
+          autoComplete="new-password"
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
           className="
-            mt-2
             w-full
             rounded-lg
             border
@@ -422,20 +426,27 @@ function PasswordInput({
             bg-gray-50
             px-4
             py-3
-            pr-10
+            pr-12
+            outline-none
+            focus:border-green-700
           "
         />
 
-        <Eye
-          size={18}
+        <button
+          type="button"
+          onClick={() => setShowPassword((visible) => !visible)}
+          aria-label={`${showPassword ? "Sembunyikan" : "Tampilkan"} ${label.toLowerCase()}`}
+          aria-controls={inputId}
           className="
             absolute
-            right-3
+            right-4
             top-1/2
             -translate-y-1/2
             text-gray-500
           "
-        />
+        >
+          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+        </button>
       </div>
     </div>
   );
