@@ -36,7 +36,8 @@ type Facility = {
 export default function FormulirLaporanBaruPage() {
   const router = useRouter();
 
-  // State fasilitas dari database
+  // State user login & fasilitas dari database
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null);
 
@@ -55,7 +56,25 @@ export default function FormulirLaporanBaruPage() {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // 1. Fetch data fasilitas dari API (/api/facilities)
+  // 1. Fetch Sesi User Login
+  useEffect(() => {
+    async function fetchUserSession() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            setCurrentUser(data.user);
+          }
+        }
+      } catch (err) {
+        console.error("Gagal mengambil sesi user:", err);
+      }
+    }
+    fetchUserSession();
+  }, []);
+
+  // 2. Fetch data fasilitas dari API (/api/facilities)
   useEffect(() => {
     async function fetchFacilities() {
       try {
@@ -103,7 +122,7 @@ export default function FormulirLaporanBaruPage() {
     setFilePreview(null);
   }
 
-  // 2. Submit Laporan Kerusakan (POST /api/reports)
+  // 3. Submit Laporan Kerusakan (POST /api/reports)
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -154,8 +173,8 @@ export default function FormulirLaporanBaruPage() {
   return (
     <div className="min-h-screen bg-[#F2F3FF] text-[#131B2E] font-inter flex flex-col justify-between">
       <div>
-        {/* ================= NAVBAR ================= */}
-        <DashboardNavbar />
+        {/* ================= NAVBAR DASHBOARD (Dinamis User Sesi) ================= */}
+        <DashboardNavbar user={currentUser} />
 
         {/* ================= MAIN CONTENT ================= */}
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 space-y-6">
@@ -229,11 +248,10 @@ export default function FormulirLaporanBaruPage() {
                             <p className="font-bold text-[#131B2E] font-jakarta text-sm">
                               {selectedFacility.name} — {selectedFacility.building}, {selectedFacility.floor}
                             </p>
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                              selectedFacility.status === "ACTIVE"
-                                ? "bg-emerald-100 text-[#0D7C55]"
-                                : "bg-amber-100 text-amber-700"
-                            }`}>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${selectedFacility.status === "ACTIVE"
+                              ? "bg-emerald-100 text-[#0D7C55]"
+                              : "bg-amber-100 text-amber-700"
+                              }`}>
                               <CheckCircle2 className="w-3 h-3" /> {selectedFacility.status}
                             </span>
                           </div>
@@ -265,11 +283,10 @@ export default function FormulirLaporanBaruPage() {
                 {/* Opsi 1 */}
                 <div
                   onClick={() => setSelectedKategori("proyektor")}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
-                    selectedKategori === "proyektor"
-                      ? "bg-emerald-50/50 border-[#0D7C55] ring-1 ring-[#0D7C55]"
-                      : "bg-[#F2F3FF]/40 border-slate-200 hover:bg-slate-50"
-                  }`}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${selectedKategori === "proyektor"
+                    ? "bg-emerald-50/50 border-[#0D7C55] ring-1 ring-[#0D7C55]"
+                    : "bg-[#F2F3FF]/40 border-slate-200 hover:bg-slate-50"
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-[#131B2E] font-jakarta flex items-center gap-1.5">
@@ -283,11 +300,10 @@ export default function FormulirLaporanBaruPage() {
                 {/* Opsi 2 */}
                 <div
                   onClick={() => setSelectedKategori("ac")}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
-                    selectedKategori === "ac"
-                      ? "bg-emerald-50/50 border-[#0D7C55] ring-1 ring-[#0D7C55]"
-                      : "bg-[#F2F3FF]/40 border-slate-200 hover:bg-slate-50"
-                  }`}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${selectedKategori === "ac"
+                    ? "bg-emerald-50/50 border-[#0D7C55] ring-1 ring-[#0D7C55]"
+                    : "bg-[#F2F3FF]/40 border-slate-200 hover:bg-slate-50"
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-[#131B2E] font-jakarta flex items-center gap-1.5">
@@ -301,11 +317,10 @@ export default function FormulirLaporanBaruPage() {
                 {/* Opsi 3 */}
                 <div
                   onClick={() => setSelectedKategori("listrik")}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
-                    selectedKategori === "listrik"
-                      ? "bg-emerald-50/50 border-[#0D7C55] ring-1 ring-[#0D7C55]"
-                      : "bg-[#F2F3FF]/40 border-slate-200 hover:bg-slate-50"
-                  }`}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${selectedKategori === "listrik"
+                    ? "bg-emerald-50/50 border-[#0D7C55] ring-1 ring-[#0D7C55]"
+                    : "bg-[#F2F3FF]/40 border-slate-200 hover:bg-slate-50"
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-[#131B2E] font-jakarta flex items-center gap-1.5">
@@ -319,11 +334,10 @@ export default function FormulirLaporanBaruPage() {
                 {/* Opsi 4 */}
                 <div
                   onClick={() => setSelectedKategori("furnitur")}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${
-                    selectedKategori === "furnitur"
-                      ? "bg-emerald-50/50 border-[#0D7C55] ring-1 ring-[#0D7C55]"
-                      : "bg-[#F2F3FF]/40 border-slate-200 hover:bg-slate-50"
-                  }`}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 ${selectedKategori === "furnitur"
+                    ? "bg-emerald-50/50 border-[#0D7C55] ring-1 ring-[#0D7C55]"
+                    : "bg-[#F2F3FF]/40 border-slate-200 hover:bg-slate-50"
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-[#131B2E] font-jakarta flex items-center gap-1.5">
@@ -337,11 +351,10 @@ export default function FormulirLaporanBaruPage() {
                 {/* Opsi 5 */}
                 <div
                   onClick={() => setSelectedKategori("lainnya")}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 sm:col-span-2 ${
-                    selectedKategori === "lainnya"
-                      ? "bg-emerald-50/50 border-[#0D7C55] ring-1 ring-[#0D7C55]"
-                      : "bg-[#F2F3FF]/40 border-slate-200 hover:bg-slate-50"
-                  }`}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-2 sm:col-span-2 ${selectedKategori === "lainnya"
+                    ? "bg-emerald-50/50 border-[#0D7C55] ring-1 ring-[#0D7C55]"
+                    : "bg-[#F2F3FF]/40 border-slate-200 hover:bg-slate-50"
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-[#131B2E] font-jakarta flex items-center gap-1.5">
@@ -378,7 +391,7 @@ export default function FormulirLaporanBaruPage() {
               </p>
             </div>
 
-            {/* 4. Upload Foto Bukti Kerusakan (INTERAKTIF DENGAN TOMBOL UPLOAD) */}
+            {/* 4. Upload Foto Bukti Kerusakan */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-bold text-[#131B2E] font-jakarta uppercase tracking-wider">
@@ -389,7 +402,6 @@ export default function FormulirLaporanBaruPage() {
 
               <div className="bg-[#F2F3FF]/60 border border-slate-200 p-4 rounded-2xl space-y-3">
                 {selectedFile ? (
-                  /* Tampilan Jika Foto Sudah Terpilih */
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-3 rounded-xl border border-slate-200">
                     <div className="flex items-center space-x-3">
                       <div className="w-14 h-12 rounded-lg bg-slate-800 text-white flex items-center justify-center font-bold text-xs shrink-0 relative overflow-hidden">
@@ -427,7 +439,6 @@ export default function FormulirLaporanBaruPage() {
                     </div>
                   </div>
                 ) : (
-                  /* Tombol Pilih / Upload Foto */
                   <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 hover:border-[#0D7C55] bg-white p-6 rounded-2xl transition-all cursor-pointer text-center">
                     <input
                       type="file"
