@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
     HelpCircle,
-    Search,
     ChevronDown,
     ChevronUp,
     MessageSquare,
@@ -23,7 +22,6 @@ import Navbar from "@/components/dashboard/navbar";
 import DashboardFooter from "@/components/dashboard/footer";
 
 export default function BantuanPage() {
-    const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState('Semua');
     const [openFaq, setOpenFaq] = useState<number | null>(1);
     const [copied, setCopied] = useState(false);
@@ -31,7 +29,6 @@ export default function BantuanPage() {
 
     const phoneNumber = '+62 812-3456-7890';
 
-    // Ambil sesi user jika pengguna sudah login (tetap bisa diakses publik jika belum login)
     useEffect(() => {
         async function fetchUserSession() {
             try {
@@ -83,6 +80,13 @@ export default function BantuanPage() {
         },
         {
             id: 5,
+            category: 'Laporan Kerusakan',
+            question: 'Siapa yang berhak membuat laporan kerusakan fasilitas kampus?',
+            answer: 'Seluruh civitas akademika (Mahasiswa, Dosen, dan Tenaga Kependidikan) yang telah memiliki akun terverifikasi di portal SIKAK berhak mengirimkan laporan kerusakan fasilitas.',
+            tags: ['Akun SIKAK Terverifikasi', 'Civitas Akademika Kampus']
+        },
+        {
+            id: 6,
             category: 'Reservasi & Waktu',
             question: 'Bagaimana jika terjadi kendala teknis mendadak saat kuliah / praktikum?',
             answer: 'Segera hubungi Helpdesk Sarpras melalui nomor WhatsApp atau Surel Resmi yang tertera di panel samping untuk penanganan cepat di lokasi.'
@@ -90,18 +94,15 @@ export default function BantuanPage() {
     ];
 
     const filteredFaqs = faqs.filter(faq => {
-        const matchesTab = activeTab === 'Semua' || faq.category === activeTab;
-        const matchesSearch = faq.question.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesTab && matchesSearch;
+        return activeTab === 'Semua' || faq.category === activeTab;
     });
 
     return (
         <div className="min-h-screen bg-[#F2F3FF] text-[#131B2E] font-inter flex flex-col justify-between">
             <div>
-                {/* ================= NAVBAR DASHBOARD (Dinamis: Publik / Login) ================= */}
                 <Navbar user={currentUser} />
 
-                {/* ================= MAIN CONTENT ================= */}
+                {/*MAIN CONTENT*/}
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 space-y-6">
 
                     {/* BREADCRUMB & HERO */}
@@ -120,47 +121,13 @@ export default function BantuanPage() {
                             <h1 className="text-3xl sm:text-4xl font-extrabold text-[#131B2E] font-jakarta tracking-tight mb-3">
                                 Pusat Bantuan & Informasi SIKAK
                             </h1>
-                            <p className="text-[#3E4942] max-w-2xl mx-auto text-sm sm:text-base mb-8 font-inter">
+                            <p className="text-[#3E4942] max-w-2xl mx-auto text-sm sm:text-base font-inter">
                                 Cari jawaban cepat seputar peminjaman fasilitas, aturan slot waktu, tracking tiket perbaikan, atau terhubung langsung dengan petugas Sarpras.
                             </p>
-
-                            {/* Search Bar */}
-                            <div className="max-w-2xl mx-auto relative mb-4">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                                    <Search className="w-5 h-5" />
-                                </div>
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Cari topik bantuan (mis. aturan 30 menit, cara pembatalan, laporan rusak)..."
-                                    className="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl shadow-xs text-sm focus:outline-none focus:ring-2 focus:ring-[#0D7C55] focus:border-transparent transition font-inter"
-                                />
-                            </div>
-
-                            {/* Quick Suggestion Badges */}
-                            <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[#3E4942] font-jakarta">
-                                <span className="font-medium text-slate-500">Paling sering dicari:</span>
-                                {['Waktu', 'Pembatalan', 'Reservasi', 'Dokumen Izin'].map((item) => (
-                                    <button
-                                        key={item}
-                                        onClick={() => setSearchQuery(item)}
-                                        className="bg-white border border-slate-200 px-3 py-1 rounded-full hover:bg-slate-100 transition shadow-2xs font-medium text-slate-700"
-                                    >
-                                        {item}
-                                    </button>
-                                ))}
-                            </div>
                         </div>
                     </div>
-
-                    {/* MAIN CONTENT GRID */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                        {/* LEFT & CENTER COLUMN (FAQ) */}
                         <div className="lg:col-span-2 space-y-6">
-
-                            {/* FAQ Container Card */}
                             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
                                 <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center space-x-2">
@@ -173,8 +140,6 @@ export default function BantuanPage() {
                                         {filteredFaqs.length} Panduan
                                     </span>
                                 </div>
-
-                                {/* Filter Tabs */}
                                 <div className="flex flex-wrap gap-2 pb-6 border-b border-slate-100">
                                     {['Semua', 'Reservasi & Waktu', 'Pembatasan & Perubahan', 'Laporan Kerusakan'].map((tab) => (
                                         <button
@@ -189,8 +154,6 @@ export default function BantuanPage() {
                                         </button>
                                     ))}
                                 </div>
-
-                                {/* Accordion List */}
                                 <div className="divide-y divide-slate-100 mt-4">
                                     {filteredFaqs.length > 0 ? (
                                         filteredFaqs.map((faq, index) => {
@@ -247,13 +210,11 @@ export default function BantuanPage() {
                                         })
                                     ) : (
                                         <div className="py-12 text-center text-slate-500 text-sm">
-                                            Tidak ada FAQ yang sesuai dengan pencarian Anda.
+                                            Tidak ada FAQ yang sesuai.
                                         </div>
                                     )}
                                 </div>
                             </div>
-
-                            {/* Bottom Card: Belum menemukan solusi? -> Link WhatsApp */}
                             <div className="bg-gradient-to-r from-slate-100 to-emerald-50/50 rounded-3xl border border-slate-200 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
                                 <div>
                                     <h3 className="text-base font-bold text-[#131B2E] mb-1 font-jakarta">Belum menemukan solusi yang tepat?</h3>
@@ -273,11 +234,7 @@ export default function BantuanPage() {
                             </div>
 
                         </div>
-
-                        {/* RIGHT COLUMN (SUPPORT WIDGETS) */}
                         <div className="space-y-6">
-
-                            {/* Helpdesk Sarpras */}
                             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm relative overflow-hidden">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center space-x-2">
@@ -322,14 +279,13 @@ export default function BantuanPage() {
                                     href={`https://wa.me/${phoneNumber.replace(/[^0-9]/g, '')}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="w-full bg-[#006141] hover:bg-[#0D7C55] text-white font-medium py-3 rounded-xl shadow-xs transition flex items-center justify-center space-x-2 text-sm font-jakarta"
+                                    className="w-full bg-[#006141] hover:bg-[#0D7C55] text-[#FFFFFF] font-medium py-3 rounded-xl shadow-xs transition flex items-center justify-center space-x-2 text-sm font-jakarta"
                                 >
-                                    <MessageSquare className="w-4 h-4" />
+                                    <MessageSquare className="w-4 h-4 text-white" />
                                     <span>Hubungi via WhatsApp</span>
                                 </a>
                             </div>
 
-                            {/* Surel Resmi Administrasi */}
                             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
                                 <div className="flex items-center space-x-2 mb-2">
                                     <div className="p-2 bg-slate-100 text-slate-600 rounded-xl">
@@ -350,8 +306,6 @@ export default function BantuanPage() {
                                     </a>
                                 </div>
                             </div>
-
-                            {/* Ingin panduan lengkap? -> PDF Direct Download */}
                             <div className="bg-emerald-50/60 border border-emerald-100 rounded-3xl p-6 shadow-sm">
                                 <div className="flex items-center space-x-2 mb-2 text-emerald-900">
                                     <BookOpen className="w-5 h-5" />
