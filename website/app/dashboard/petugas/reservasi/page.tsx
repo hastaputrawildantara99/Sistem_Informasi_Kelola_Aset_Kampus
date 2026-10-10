@@ -41,6 +41,7 @@ type ApiReservation = {
   endTime: string;
   purpose: string;
   status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  cancellationReason?: string | null;
   user: {
     name: string;
     email: string;
@@ -92,6 +93,7 @@ function mapApiReservation(reservation: ApiReservation): Reservation {
           : reservation.status === "CANCELLED"
             ? "DIBATALKAN"
             : "Menunggu",
+    alasanPembatalan: reservation.cancellationReason || undefined,
   };
 }
 
@@ -244,7 +246,7 @@ export default function PetugasReservasiPage() {
     setCancellationError("");
   }
 
-  function cancelReservation() {
+  async function cancelReservation() {
     if (!selectedReservation) {
       return;
     }
@@ -254,19 +256,39 @@ export default function PetugasReservasiPage() {
       return;
     }
 
-    setReservations((currentReservations) =>
-      currentReservations.map((reservation) =>
-        reservation.id === selectedReservation.id
-          ? {
-              ...reservation,
-              status: "DIBATALKAN",
-              alasanPembatalan: cancellationReason.trim(),
-            }
-          : reservation
-      )
-    );
+    const reservationId = selectedReservation.id;
+    setActionLoadingId(reservationId);
+    setErrorMessage("");
+    setSuccessMessage("");
+    setCancellationError("");
 
-    closeCancelModal();
+    try {
+      const response = await fetch(
+        `/api/petugas/reservations/${reservationId}/cancel`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: cancellationReason.trim() }),
+        },
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | ApiPayload<ApiReservation>
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Reservasi gagal dibatalkan.");
+      }
+
+      setSuccessMessage(payload?.message || "Reservasi berhasil dibatalkan.");
+      closeCancelModal();
+      await loadReservations();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Reservasi gagal dibatalkan.",
+      );
+    } finally {
+      setActionLoadingId(null);
+    }
   }
 
   return (
@@ -732,9 +754,12 @@ export default function PetugasReservasiPage() {
               <button
                 type="button"
                 onClick={cancelReservation}
-                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700"
+                disabled={actionLoadingId !== null}
+                className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Batalkan Reservasi
+                {actionLoadingId === selectedReservation.id
+                  ? "Memproses..."
+                  : "Batalkan Reservasi"}
               </button>
             </div>
           </div>
