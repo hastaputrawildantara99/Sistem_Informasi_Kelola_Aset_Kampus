@@ -87,8 +87,8 @@ export async function DELETE(
       include: {
         _count: {
           select: {
-            Reservation: true,
-            Report: true,
+            reservations: true,
+            reports: true,
           },
         },
       },
@@ -99,10 +99,10 @@ export async function DELETE(
     }
 
     // Prevent deletion if user has reservations or reports linked
-    if (existing._count.Reservation > 0 || existing._count.Report > 0) {
+    if (existing._count.reservations > 0 || existing._count.reports > 0) {
       return NextResponse.json(
         {
-          error: `Pengguna tidak dapat dihapus karena memiliki riwayat ${existing._count.Reservation} reservasi dan ${existing._count.Report} laporan fasilitas.`,
+          error: `Pengguna tidak dapat dihapus karena memiliki riwayat ${existing._count.reservations} reservasi dan ${existing._count.reports} laporan fasilitas.`,
         },
         { status: 400 }
       );

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -31,10 +31,11 @@ type SidebarProps = {
 
 export default function Sidebar({
   role = "admin",
-  activeMenu = "Dashboard",
+  activeMenu,
   user,
 }: SidebarProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   async function handleLogout() {
     await fetch("/api/auth/logout", {
@@ -172,7 +173,12 @@ export default function Sidebar({
         {menus.map((item) => {
           const Icon = item.icon;
 
-          const active = activeMenu === item.name;
+          // Check active based on pathname or activeMenu fallback
+          const active = pathname
+            ? (item.href === "/dashboard/admin" || item.href === "/dashboard/petugas"
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(item.href + "/") || (item.href === "/dashboard/admin/users" && pathname.startsWith("/dashboard/admin/user")))
+            : activeMenu === item.name;
 
           return (
             <Link
