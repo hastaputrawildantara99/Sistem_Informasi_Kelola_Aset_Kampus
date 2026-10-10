@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Bell, LogIn, UserCircle } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
 import { usePathname, useRouter } from "next/navigation";
 
 type NavbarProps = {
@@ -17,6 +18,7 @@ type NavbarProps = {
 
 export default function Navbar({ user: currentUser }: NavbarProps) {
   const router = useRouter();
+  const pathname = usePathname(); // Mengambil URL path aktif saat ini
 
   async function handleLogout() {
     await fetch("/api/auth/logout", {
@@ -24,15 +26,14 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
     });
 
     router.push("/login");
-
     router.refresh();
   }
 
   function formatText(text?: string | null) {
     if (!text) return "";
-
     return text.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
   }
+
   return (
     <header
       className="
@@ -58,13 +59,18 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
         "
       >
         {/* LOGO */}
-
-        <Link href="/">
-          <Image src="/logo.svg" alt="SIKAK" width={115} height={40} priority />
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/logo.svg"
+            alt="SIKAK"
+            width={120}
+            height={40}
+            className="h-9 w-auto object-contain"
+            priority
+          />
         </Link>
 
-        {/* CENTER MENU */}
-
+        {/* CENTER MENU (Rute disesuaikan tanpa /dashboard untuk laporan & bantuan) */}
         <nav
           className="
             hidden
@@ -86,10 +92,8 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
         </nav>
 
         {/* RIGHT SECTION */}
-
         {currentUser ? (
           // USER LOGIN
-
           <div
             className="
                 flex
@@ -104,7 +108,6 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
                 "
             >
               <Bell size={20} />
-
               <span
                 className="
                     absolute
@@ -156,11 +159,11 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
                 <button
                   onClick={handleLogout}
                   className="
-      mt-1
-      text-xs
-      text-red-600
-      hover:text-red-800
-    "
+                    mt-1
+                    text-xs
+                    text-red-600
+                    hover:text-red-800
+                  "
                 >
                   Logout
                 </button>
@@ -169,7 +172,6 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
           </div>
         ) : (
           // BELUM LOGIN
-
           <div
             className="
                 flex
@@ -208,13 +210,6 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
               <LogIn size={16} />
               Masuk
             </Link>
-
-            <UserCircle
-              size={30}
-              className="
-                  text-green-700
-                "
-            />
           </div>
         )}
       </div>
@@ -222,12 +217,15 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
   );
 }
 
+// Komponen Pendukung MenuItem
 function MenuItem({
   children,
   href = "#",
+  active,
 }: {
   children: React.ReactNode;
   href?: string;
+  active?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -240,9 +238,9 @@ function MenuItem({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`rounded-full px-5 py-2 text-sm font-medium ${active
-          ? "bg-[#007A4D] text-white"
-          : "text-gray-700 hover:bg-white"
+      className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${active
+          ? "bg-[#007A4D] text-white shadow-sm"
+          : "text-gray-700 hover:bg-white/80 hover:text-black"
         }`}
     >
       {children}
