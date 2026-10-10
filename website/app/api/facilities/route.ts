@@ -66,6 +66,8 @@ export async function GET(request: Request) {
         capacity: true,
         description: true,
         status: true,
+        building: true,
+        floor: true,
       },
       orderBy: {
         name: "asc",
@@ -73,9 +75,7 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json({
-      data: facilities,
-      // Pertahankan kontrak lama untuk halaman laporan yang belum dimigrasikan.
-      facilities,
+      data: facilities, facilities
     });
   } catch (error) {
     console.error("Gagal mengambil daftar fasilitas:", error);

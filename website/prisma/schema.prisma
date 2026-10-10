@@ -8,25 +8,24 @@ datasource db {
 }
 
 model User {
-  id       Int        @id @default(autoincrement())
-  name     String
-  email    String     @unique
-  username String     @unique
-  password String
-  role     Role       @default(USER)
-
-  jenisUser JenisUser?
-  verified  Boolean   @default(false)
-
-  mahasiswa Mahasiswa?
-  dosen     Dosen?
-  staf      Staf?
-
+  id          Int           @id @default(autoincrement())
+  name        String
+  email       String        @unique
+  username    String        @unique
+  password    String
+  role        Role          @default(USER)
+  jenisUser   JenisUser?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  verified    Boolean       @default(false)
+  dosen       Dosen?
+  mahasiswa   Mahasiswa?
+  Report      Report[]
+  Reservation Reservation[]
+  staf        Staf?
+  
   reservations Reservation[]
   reports      Report[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model Mahasiswa {
@@ -49,8 +48,7 @@ model Staf {
   id     Int    @id @default(autoincrement())
   nip    String @unique
   userId Int    @unique
-
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 }
 
 model Facility {
@@ -106,8 +104,8 @@ model Report {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  User     User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  Facility Facility @relation(fields: [facilityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([facilityId], map: "Report_facilityId_fkey")
   @@index([userId], map: "Report_userId_fkey")
@@ -123,27 +121,6 @@ enum JenisUser {
   MAHASISWA
   DOSEN
   STAF
-}
-
-enum FacilityType {
-  CLASSROOM
-  HALL
-  LABORATORY
-  EQUIPMENT
-  FIELD
-}
-
-enum FacilityStatus {
-  ACTIVE
-  MAINTENANCE
-  INACTIVE
-}
-
-enum ReservationStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
 }
 
 enum ReportStatus {
