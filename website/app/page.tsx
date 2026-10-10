@@ -1,4 +1,5 @@
 import Navbar from "@/components/dashboard/navbar";
+import Footer from "@/components/dashboard/footer";
 import { getCurrentUser } from "@/lib/auth";
 
 export default async function Page() {
@@ -17,6 +18,7 @@ export default async function Page() {
       />
 
       <main className="pt-16">...</main>
+      <Footer />
     </>
   );
 }
