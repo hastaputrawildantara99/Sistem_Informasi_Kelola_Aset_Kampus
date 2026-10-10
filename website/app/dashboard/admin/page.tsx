@@ -105,7 +105,8 @@ export default function AdminDashboardPage() {
 
   // Filters
   const [buildingFilter, setBuildingFilter] = useState('Semua Gedung');
-  const [monthFilter, setMonthFilter] = useState('Bulan Ini (Oktober 2026)');
+  const [monthFilter, setMonthFilter] = useState('Bulan Ini');
+  const [availableBuildings, setAvailableBuildings] = useState<string[]>(['Semua Gedung']);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -117,8 +118,12 @@ export default function AdminDashboardPage() {
     try {
       setIsLoading(true);
       
+      const query = new URLSearchParams();
+      if (buildingFilter && buildingFilter !== 'Semua Gedung') query.append('gedung', buildingFilter);
+      if (monthFilter) query.append('bulan', monthFilter);
+
       const [statsRes, usersRes, facilitiesRes] = await Promise.all([
-        fetch('/api/admin/stats'),
+        fetch(`/api/admin/stats?${query.toString()}`),
         fetch('/api/admin/users'),
         fetch('/api/admin/facilities')
       ]);
@@ -126,6 +131,9 @@ export default function AdminDashboardPage() {
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData);
+        if (statsData.buildings && statsData.buildings.length > 0) {
+          setAvailableBuildings(statsData.buildings);
+        }
       }
 
       if (usersRes.ok) {
@@ -179,7 +187,7 @@ export default function AdminDashboardPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [monthFilter, buildingFilter]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -327,8 +335,25 @@ export default function AdminDashboardPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Filtered Occupancy & Incidents data based on current filter
+  const filteredOccupancy = stats.occupancyData.filter(d => 
+    buildingFilter === 'Semua Gedung' || d.building === buildingFilter
+  );
+
+  const filteredIncidents = stats.incidentData.filter(d =>
+    buildingFilter === 'Semua Gedung' || d.building === buildingFilter
+  );
+
+  const currentTotalHours = filteredOccupancy.reduce((acc, curr) => acc + curr.hours, 0);
+  const currentTotalReports = filteredIncidents.reduce((acc, curr) => acc + curr.reportCount, 0);
+
+  const sortedOccupancy = [...filteredOccupancy].sort((a, b) => b.hours - a.hours);
+  const topFacility = sortedOccupancy.length > 0 && sortedOccupancy[0].hours > 0 ? sortedOccupancy[0] : null;
+
+  const maxHours = Math.max(1, ...filteredOccupancy.map(d => d.hours), 10);
+
   const getExportData = () => {
-    const items: RekapExportItem[] = stats.occupancyData.map((f) => ({
+    const items: RekapExportItem[] = filteredOccupancy.map((f) => ({
       id: f.id,
       fasilitas: f.name,
       code: f.code || `FAC-${f.id}`,
@@ -339,10 +364,10 @@ export default function AdminDashboardPage() {
       status: f.status === 'MAINTENANCE' ? 'Perlu Perbaikan' : (f.reportCount === 0 ? 'Sangat Baik' : 'Baik'),
     }));
     const exportStats: ExportStats = {
-      totalJam: stats.totalHours,
-      rataOkupansi: stats.averageOccupancy,
-      totalInsiden: stats.totalReports,
-      fasilitasTerdampak: stats.incidentData.filter(i => i.reportCount > 0).length,
+      totalJam: currentTotalHours,
+      rataOkupansi: filteredOccupancy.length > 0 ? Math.round(currentTotalHours / filteredOccupancy.length) : 0,
+      totalInsiden: currentTotalReports,
+      fasilitasTerdampak: filteredIncidents.filter(i => i.reportCount > 0).length,
     };
     return { items, exportStats, filters: { gedung: buildingFilter, bulan: monthFilter } };
   };
@@ -394,13 +419,6 @@ export default function AdminDashboardPage() {
 
   const activeFacilitiesCount = stats.activeFacilities;
   const inactiveFacilitiesCount = stats.inactiveFacilities;
-
-  // Filtered Occupancy data for chart
-  const filteredOccupancy = stats.occupancyData.filter(d => 
-    buildingFilter === 'Semua Gedung' || d.building === buildingFilter
-  );
-
-  const maxHours = Math.max(1, ...filteredOccupancy.map(d => d.hours), 10);
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 relative">
@@ -706,11 +724,10 @@ export default function AdminDashboardPage() {
                 <select 
                   value={buildingFilter}
                   onChange={(e) => setBuildingFilter(e.target.value)}
-                  className="appearance-none pl-9 pr-10 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#006B45]/20 focus:border-[#006B45]">
-                  <option value="Semua Gedung">Semua Gedung</option>
-                  <option value="Gedung B">Gedung B</option>
-                  <option value="Gedung E">Gedung E</option>
-                  <option value="Gedung Rektorat">Gedung Rektorat</option>
+                  className="appearance-none pl-9 pr-10 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#006B45]/20 focus:border-[#006B45] cursor-pointer">
+                  {availableBuildings.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
                 </select>
                 <Building2 className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -719,10 +736,11 @@ export default function AdminDashboardPage() {
                 <select 
                   value={monthFilter}
                   onChange={(e) => setMonthFilter(e.target.value)}
-                  className="appearance-none pl-9 pr-10 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#006B45]/20 focus:border-[#006B45]">
-                  <option>Bulan Ini (Oktober 2026)</option>
-                  <option>September 2026</option>
-                  <option>Agustus 2026</option>
+                  className="appearance-none pl-9 pr-10 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#006B45]/20 focus:border-[#006B45] cursor-pointer">
+                  <option value="Bulan Ini">Bulan Ini (Oktober 2026)</option>
+                  <option value="Bulan Lalu">Bulan Lalu (September 2026)</option>
+                  <option value="Tahun Ini">Tahun Ini (2026)</option>
+                  <option value="Semua Waktu">Semua Waktu</option>
                 </select>
                 <Filter className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -731,13 +749,13 @@ export default function AdminDashboardPage() {
             
             <div className="flex items-center gap-2 justify-end">
               <span className="text-xs text-gray-500 mr-1">Ekspor Rekap:</span>
-              <button onClick={exportPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-md text-xs font-medium hover:bg-rose-100 transition-colors">
-                <FileText className="w-3 h-3" /> PDF / TXT
+              <button onClick={exportPDF} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-md text-xs font-medium hover:bg-rose-100 transition-colors cursor-pointer">
+                <FileText className="w-3 h-3" /> PDF
               </button>
-              <button onClick={exportExcel} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-md text-xs font-medium hover:bg-emerald-100 transition-colors">
+              <button onClick={exportExcel} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-md text-xs font-medium hover:bg-emerald-100 transition-colors cursor-pointer">
                 <FileText className="w-3 h-3" /> Excel
               </button>
-              <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium hover:bg-gray-200 transition-colors">
+              <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium hover:bg-gray-200 transition-colors cursor-pointer">
                 <FileText className="w-3 h-3" /> CSV
               </button>
             </div>
@@ -827,7 +845,7 @@ export default function AdminDashboardPage() {
 
                       {/* Interactive Nodes */}
                       <div className="absolute inset-0 flex justify-between items-stretch pointer-events-none">
-                        {points.map(({ fac, y }, idx) => {
+                        {points.map(({ fac, y }) => {
                           const topPercent = Math.max(0, Math.min(100, (y / chartH) * 100));
                           return (
                             <div key={fac.id} className="relative flex flex-col items-center flex-1">
@@ -876,10 +894,10 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-2">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-[#006B45]" />
-              <span className="font-semibold text-gray-900 text-sm">Total {stats.totalHours} Jam Terpakai</span>
+              <span className="font-semibold text-gray-900 text-sm">Total {currentTotalHours} Jam Terpakai</span>
             </div>
             <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
-              {filteredOccupancy[0]?.name ? `Top: ${filteredOccupancy[0].name}` : 'Semua Fasilitas'}
+              {topFacility ? `Top: ${topFacility.name} (${topFacility.hours} Jam)` : 'Tidak ada penggunaan'}
             </span>
           </div>
         </div>
@@ -889,14 +907,14 @@ export default function AdminDashboardPage() {
           <div className="flex justify-between items-start mb-1">
             <h3 className="text-lg font-bold text-gray-900">Frekuensi Laporan Kerusakan</h3>
             <span className="px-2.5 py-1 text-[10px] font-bold bg-rose-100 text-rose-700 rounded-full tracking-wide">
-              {stats.totalReports} Total Insiden
+              {currentTotalReports} Total Insiden
             </span>
           </div>
           <p className="text-sm text-gray-500 mb-6">Sebaran laporan kerusakan sarana fasilitas dari pengguna</p>
           
           <div className="space-y-4 flex-1">
-            {stats.incidentData.length > 0 ? (
-              stats.incidentData.map((item, idx) => {
+            {filteredIncidents.length > 0 ? (
+              filteredIncidents.map((item, idx) => {
                 const badgeColor = 
                   idx === 0 && item.reportCount > 0 ? 'bg-rose-100 text-rose-700' :
                   item.reportCount > 0 ? 'bg-orange-100 text-orange-700' :

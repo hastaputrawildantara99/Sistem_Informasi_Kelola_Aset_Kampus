@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       let filteredReports = fac.reports;
 
       // Filter reservations by time if requested
-      if (bulan === 'Bulan Ini') {
+      if (bulan === 'Bulan Ini' || bulan?.includes('Bulan Ini') || bulan?.includes('Oktober')) {
         filteredReservations = filteredReservations.filter((res) => {
           const d = new Date(res.startTime);
           return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
           const d = new Date(rep.createdAt);
           return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
         });
-      } else if (bulan === 'Bulan Lalu') {
+      } else if (bulan === 'Bulan Lalu' || bulan?.includes('September')) {
         const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
         const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
         filteredReservations = filteredReservations.filter((res) => {
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
           const d = new Date(rep.createdAt);
           return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
         });
-      } else if (bulan === 'Tahun Ini') {
+      } else if (bulan === 'Tahun Ini' || bulan === '2026') {
         filteredReservations = filteredReservations.filter((res) => {
           const d = new Date(res.startTime);
           return d.getFullYear() === currentYear;
@@ -54,6 +54,7 @@ export async function GET(request: Request) {
           return d.getFullYear() === currentYear;
         });
       }
+      // If 'Semua Waktu', all historical records are included without date filter
 
       // Calculate total occupancy hours
       let totalMinutes = 0;
