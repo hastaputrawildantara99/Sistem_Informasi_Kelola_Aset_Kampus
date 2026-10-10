@@ -757,47 +757,69 @@ export default function AdminDashboardPage() {
           <p className="text-sm text-gray-500 mb-8">Akumulasi jam penggunaan reservasi per fasilitas</p>
           
           {/* Bar Chart Real Data */}
-          <div className="relative h-64 mt-auto mb-6 flex items-end justify-between px-2 pt-6">
-            <div className="absolute inset-0 flex flex-col justify-between text-xs text-gray-400 pb-8 z-0">
+          <div className="relative h-64 mt-auto mb-6 px-2 pt-4">
+            {/* Gridlines */}
+            <div className="absolute inset-0 flex flex-col justify-between text-xs text-gray-400 pb-9 z-0 pointer-events-none">
               <div className="flex items-center w-full">
-                <span className="w-8 text-right mr-3">{maxHours}</span>
+                <span className="w-7 text-right mr-3 font-mono">{maxHours}</span>
                 <div className="flex-1 border-t border-dashed border-gray-200"></div>
               </div>
               <div className="flex items-center w-full">
-                <span className="w-8 text-right mr-3">{Math.round(maxHours * 0.75)}</span>
+                <span className="w-7 text-right mr-3 font-mono">{Math.round(maxHours * 0.75)}</span>
                 <div className="flex-1 border-t border-dashed border-gray-200"></div>
               </div>
               <div className="flex items-center w-full">
-                <span className="w-8 text-right mr-3">{Math.round(maxHours * 0.5)}</span>
+                <span className="w-7 text-right mr-3 font-mono">{Math.round(maxHours * 0.5)}</span>
                 <div className="flex-1 border-t border-dashed border-gray-200"></div>
               </div>
               <div className="flex items-center w-full">
-                <span className="w-8 text-right mr-3">{Math.round(maxHours * 0.25)}</span>
+                <span className="w-7 text-right mr-3 font-mono">{Math.round(maxHours * 0.25)}</span>
                 <div className="flex-1 border-t border-dashed border-gray-200"></div>
               </div>
               <div className="flex items-center w-full">
-                <span className="w-8 text-right mr-3">0</span>
-                <div className="flex-1 border-t border-solid border-gray-200"></div>
+                <span className="w-7 text-right mr-3 font-mono">0</span>
+                <div className="flex-1 border-t border-gray-200"></div>
               </div>
             </div>
 
-            {/* Bars */}
-            <div className="relative z-10 flex w-full justify-around items-end h-[calc(100%-2rem)] ml-10">
+            {/* Bars Container */}
+            <div className="relative z-10 flex w-[calc(100%-2.5rem)] ml-10 justify-around items-end h-[calc(100%-2.25rem)]">
               {filteredOccupancy.length > 0 ? (
                 filteredOccupancy.map((fac) => {
-                  const percent = Math.max(8, Math.round((fac.hours / maxHours) * 100));
+                  const ratio = fac.hours > 0 ? fac.hours / maxHours : 0;
+                  // If hours > 0, make sure height is clearly visible (at least 15% up to 100%)
+                  const heightPercent = fac.hours > 0 ? Math.max(15, Math.round(ratio * 100)) : 4;
+                  
                   return (
-                    <div key={fac.id} className="flex flex-col items-center group">
+                    <div key={fac.id} className="flex flex-col items-center justify-end h-full flex-1 max-w-[80px] group">
+                      {/* Bar */}
                       <div 
-                        className="w-12 md:w-16 bg-gradient-to-t from-[#006B45] to-[#0D7C55] rounded-t-sm relative transition-all duration-300 group-hover:opacity-90 shadow-sm" 
-                        style={{ height: `${percent}%` }}
+                        className={`w-10 sm:w-14 rounded-t-md relative transition-all duration-300 shadow-sm flex items-start justify-center ${
+                          fac.hours > 0 
+                            ? 'bg-gradient-to-t from-[#006B45] to-[#109361] hover:brightness-110 cursor-pointer' 
+                            : 'bg-gray-200/80 hover:bg-gray-300'
+                        }`} 
+                        style={{ height: `${heightPercent}%` }}
                       >
-                        <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                          {fac.hours} jam
+                        {/* Always visible or hover hours tag */}
+                        {fac.hours > 0 ? (
+                          <span className="text-[11px] font-bold text-white mt-1 drop-shadow-sm select-none">
+                            {fac.hours}j
+                          </span>
+                        ) : null}
+
+                        {/* Tooltip on hover */}
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[11px] font-medium py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-md pointer-events-none z-30">
+                          {fac.hours} Jam ({fac.name})
                         </div>
                       </div>
-                      <span className="text-xs text-gray-600 font-medium mt-3 whitespace-nowrap text-center -ml-2 w-16 truncate" title={fac.name}>
-                        {fac.code || fac.name.substring(0, 8)}
+
+                      {/* Label underneath baseline */}
+                      <span 
+                        className="text-[11px] text-gray-600 font-semibold mt-2 text-center w-full truncate px-1" 
+                        title={`${fac.name} (${fac.code})`}
+                      >
+                        {fac.code || fac.name}
                       </span>
                     </div>
                   );
