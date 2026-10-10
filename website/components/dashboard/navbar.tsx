@@ -80,9 +80,9 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
 
           <MenuItem href="/reservations">Reservasi</MenuItem>
 
-          <MenuItem>Laporan Kerusakan</MenuItem>
+          <MenuItem href="/laporan">Laporan Kerusakan</MenuItem>
 
-          <MenuItem>Bantuan</MenuItem>
+          <MenuItem href="/bantuan">Bantuan</MenuItem>
         </nav>
 
         {/* RIGHT SECTION */}
@@ -240,11 +240,10 @@ function MenuItem({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`rounded-full px-5 py-2 text-sm font-medium ${
-        active
+      className={`rounded-full px-5 py-2 text-sm font-medium ${active
           ? "bg-[#007A4D] text-white"
           : "text-gray-700 hover:bg-white"
-      }`}
+        }`}
     >
       {children}
     </Link>
