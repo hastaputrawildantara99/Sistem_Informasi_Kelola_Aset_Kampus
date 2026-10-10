@@ -50,32 +50,32 @@ export default function Sidebar({
     {
       name: "Dashboard Overview",
       icon: LayoutDashboard,
-      href: "/admin",
+      href: "/dashboard/admin",
     },
     {
       name: "Manajemen Akun",
       icon: Users,
-      href: "/admin/users",
+      href: "/dashboard/admin/users",
     },
     {
       name: "Kelola Fasilitas",
       icon: Building2,
-      href: "/admin/fasilitas",
+      href: "/dashboard/admin/fasilitas",
     },
     {
       name: "Verifikasi Registrasi",
       icon: ClipboardCheck,
-      href: "/admin/verifikasi",
+      href: "/dashboard/admin/verifikasi",
     },
     {
       name: "Rekap & Laporan",
       icon: FileText,
-      href: "/admin/laporan",
+      href: "/dashboard/admin/rekap",
     },
     {
       name: "Pengaturan",
       icon: Settings,
-      href: "/admin/settings",
+      href: "/dashboard/admin/settings",
     },
   ];
 
@@ -83,22 +83,22 @@ export default function Sidebar({
     {
       name: "Dashboard",
       icon: LayoutDashboard,
-      href: "/petugas",
+      href: "/dashboard/petugas",
     },
     {
       name: "Kelola Reservasi",
       icon: CalendarDays,
-      href: "/petugas/reservasi",
+      href: "/dashboard/petugas/reservasi",
     },
     {
       name: "Laporan & Fasilitas",
       icon: Wrench,
-      href: "/petugas/laporan",
+      href: "/dashboard/petugas/laporan",
     },
     {
       name: "Pengaturan",
       icon: Settings,
-      href: "/petugas/settings",
+      href: "/dashboard/petugas/settings",
     },
   ];
 
@@ -122,26 +122,27 @@ export default function Sidebar({
     >
       {/* BRAND */}
 
+
       <div className="px-2">
-        <h1
-          className="
-          text-2xl
-          font-bold
-          tracking-wide
-          "
-        >
-          🌿 SIKAK
+        <Link href="/">
+          <Image
+            src="/sikak-logo-putih.png"
+            alt="SIKAK"
+            width={170}
+            height={52}
+            className="h-auto w-[170px]"
+            priority
+          />
+        </Link>
+
+        <h1 className="sr-only text-2xl font-bold tracking-wide">
+          SIKAK
         </h1>
 
-        <p
-          className="
-          text-[11px]
-          uppercase
-          text-green-100
-          "
-        >
+        <p className="mt-1 text-[11px] uppercase text-green-100">
           {role === "admin" ? "Admin Portal" : "Portal Operasional"}
         </p>
+
       </div>
 
       {/* MENU TITLE */}

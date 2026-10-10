@@ -1,6 +1,7 @@
 import Navbar from "@/components/dashboard/navbar";
 import Footer from "@/components/dashboard/footer";
 import { getCurrentUser } from "@/lib/auth";
+import FacilityList from "@/components/facilities/facility-list";
 
 export default async function Page() {
   const user = await getCurrentUser();
@@ -17,8 +18,11 @@ export default async function Page() {
         } : undefined}
       />
 
-      <main className="pt-16">...</main>
-      <Footer />
+      <main className="min-h-screen bg-gray-50 pt-16">
+        <FacilityList
+          userRole={typeof user?.role === "string" ? user.role : undefined}
+        />
+      </main>
     </>
   );
 }
