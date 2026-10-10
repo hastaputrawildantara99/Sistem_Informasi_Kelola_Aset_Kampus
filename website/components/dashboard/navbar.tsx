@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Bell, LogIn, UserCircle } from "lucide-react";
+import { LogIn, UserCircle } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 
 type NavbarProps = {
@@ -100,33 +100,6 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
                 gap-5
               "
           >
-            <button
-              className="
-                  relative
-                  text-gray-600
-                "
-            >
-              <Bell size={20} />
-              <span
-                className="
-                    absolute
-                    -right-2
-                    -top-2
-                    flex
-                    h-4
-                    w-4
-                    items-center
-                    justify-center
-                    rounded-full
-                    bg-red-500
-                    text-[10px]
-                    text-white
-                  "
-              >
-                3
-              </span>
-            </button>
-
             <div
               className="
                   flex
