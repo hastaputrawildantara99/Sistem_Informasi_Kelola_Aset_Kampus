@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Bell, LogIn, UserCircle } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { usePathname, useRouter } from "next/navigation";
 
 type NavbarProps = {
   user?: {
@@ -221,11 +220,9 @@ export default function Navbar({ user: currentUser }: NavbarProps) {
 function MenuItem({
   children,
   href = "#",
-  active,
 }: {
   children: React.ReactNode;
   href?: string;
-  active?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -239,8 +236,8 @@ function MenuItem({
       href={href}
       aria-current={active ? "page" : undefined}
       className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${active
-          ? "bg-[#007A4D] text-white shadow-sm"
-          : "text-gray-700 hover:bg-white/80 hover:text-black"
+        ? "bg-[#007A4D] text-white shadow-sm"
+        : "text-gray-700 hover:bg-white/80 hover:text-black"
         }`}
     >
       {children}
