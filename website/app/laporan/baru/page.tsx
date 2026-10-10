@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChevronRight,
   CheckCircle2,
-  Bell,
-  User,
-  Wrench,
   Monitor,
   Snowflake,
   Zap,
@@ -17,34 +15,160 @@ import {
   Trash2,
   Info,
   Send,
-  ArrowLeft
+  Loader2,
+  UploadCloud,
 } from "lucide-react";
 import DashboardNavbar from "@/components/dashboard/navbar";
 import DashboardFooter from "@/components/dashboard/footer";
 
+type Facility = {
+  id: number;
+  name: string;
+  code: string;
+  building: string;
+  floor: string;
+  location: string;
+  capacity: number;
+  status: string;
+  description?: string | null;
+};
+
 export default function FormulirLaporanBaruPage() {
+  const router = useRouter();
+
+  // State fasilitas dari database
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null);
+
+  // State form laporan
   const [selectedKategori, setSelectedKategori] = useState<string>("proyektor");
   const [deskripsi, setDeskripsi] = useState<string>(
     "Lampu indikator proyektor gantung berkedip warna merah terus-menerus dan tidak dapat menampilkan proyeksi dari laptop dosen (No Signal). Suhu bodi proyektor terasa sangat panas setelah 10 menit dinyalakan."
   );
 
+  // State upload foto
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+
+  // State loading & error
+  const [loadingFacilities, setLoadingFacilities] = useState<boolean>(true);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string>("");
+
+  // 1. Fetch data fasilitas dari API (/api/facilities)
+  useEffect(() => {
+    async function fetchFacilities() {
+      try {
+        const res = await fetch("/api/facilities");
+        if (res.ok) {
+          const data = await res.json();
+          const list: Facility[] = data.facilities || [];
+          setFacilities(list);
+
+          if (list.length > 0) {
+            setSelectedFacilityId(list[0].id);
+          }
+        } else {
+          setErrorMsg("Gagal mengambil data fasilitas dari server");
+        }
+      } catch (err) {
+        console.error("GET FACILITIES ERROR:", err);
+        setErrorMsg("Gagal terhubung ke server fasilitas");
+      } finally {
+        setLoadingFacilities(false);
+      }
+    }
+
+    fetchFacilities();
+  }, []);
+
+  const selectedFacility = facilities.find((f) => f.id === selectedFacilityId);
+
+  // Handle pilih file foto dari komputer
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Ukuran foto maksimal 5MB!");
+        return;
+      }
+      setSelectedFile(file);
+      setFilePreview(URL.createObjectURL(file));
+    }
+  }
+
+  // Handle hapus foto yang sudah dipilih
+  function handleRemoveFile() {
+    setSelectedFile(null);
+    setFilePreview(null);
+  }
+
+  // 2. Submit Laporan Kerusakan (POST /api/reports)
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!selectedFacilityId) {
+      setErrorMsg("Silakan pilih fasilitas / ruangan terlebih dahulu");
+      return;
+    }
+
+    if (!deskripsi.trim()) {
+      setErrorMsg("Deskripsi masalah wajib diisi");
+      return;
+    }
+
+    setSubmitting(true);
+    setErrorMsg("");
+
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          facilityId: selectedFacilityId,
+          category: selectedKategori,
+          description: deskripsi,
+          photoUrl: selectedFile ? `/uploads/${selectedFile.name}` : null,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMsg(data.message || "Gagal mengirim laporan");
+        setSubmitting(false);
+        return;
+      }
+
+      // Redirect ke Halaman Laporan Saya setelah sukses
+      router.push("/laporan/saya");
+    } catch (err) {
+      console.error("SUBMIT REPORT ERROR:", err);
+      setErrorMsg("Terjadi kesalahan koneksi server saat mengirim laporan");
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#F2F3FF] text-[#131B2E] font-inter flex flex-col justify-between">
       <div>
-
         {/* ================= NAVBAR ================= */}
         <DashboardNavbar />
 
         {/* ================= MAIN CONTENT ================= */}
-        {/* Padding atas diubah menjadi pt-24 agar tidak tertutup navbar fixed */}
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12 space-y-6">
-
           {/* Breadcrumb & Header Title */}
           <div className="space-y-2">
             <div className="flex items-center space-x-2 text-xs text-[#3E4942] font-inter">
-              <Link href="/laporan" className="hover:underline">Laporan</Link>
+              <Link href="/laporan" className="hover:underline">
+                Laporan
+              </Link>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              <Link href="/laporan" className="hover:underline">Laporan Kerusakan</Link>
+              <Link href="/laporan" className="hover:underline">
+                Laporan Kerusakan
+              </Link>
               <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
               <span className="text-[#0D7C55] font-semibold">Laporan Baru</span>
             </div>
@@ -60,35 +184,71 @@ export default function FormulirLaporanBaruPage() {
           </div>
 
           {/* ================= FORM CARD CONTAINER ================= */}
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8">
-
-            {/* 1. Pilih Fasilitas / Ruangan */}
+          <form
+            onSubmit={handleSubmit}
+            className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8"
+          >
+            {/* 1. Pilih Fasilitas / Ruangan (Terhubung Database Admin) */}
             <div className="space-y-3">
               <label className="block text-xs font-bold text-[#131B2E] font-jakarta uppercase tracking-wider">
                 Pilih Fasilitas / Ruangan <span className="text-red-500">*</span>
               </label>
 
-              <div className="bg-[#F2F3FF]/70 border border-slate-200 p-4 rounded-2xl flex items-center justify-between hover:border-[#0D7C55] transition-all cursor-pointer">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-10 rounded-xl bg-[#0D7C55] text-white flex items-center justify-center shrink-0 shadow-sm">
-                    <Monitor className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-[#131B2E] font-jakarta text-sm">Laboratorium Komputer C — Gedung E, Lt. 2 (Ruang 204)</p>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-[#0D7C55]">
-                        <CheckCircle2 className="w-3 h-3" /> Terdata Aktif
-                      </span>
+              {loadingFacilities ? (
+                <div className="flex items-center gap-2 text-xs text-slate-500 py-3 bg-[#F2F3FF]/70 px-4 rounded-2xl border border-slate-200">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#0D7C55]" />
+                  <span>Memuat data fasilitas dari database...</span>
+                </div>
+              ) : facilities.length === 0 ? (
+                <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl text-xs space-y-2">
+                  <p className="font-bold">Belum ada fasilitas di database.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <select
+                    value={selectedFacilityId || ""}
+                    onChange={(e) => setSelectedFacilityId(Number(e.target.value))}
+                    className="w-full bg-[#F2F3FF]/70 border border-slate-200 p-4 rounded-2xl text-xs sm:text-sm font-bold text-[#131B2E] font-jakarta focus:outline-none focus:ring-2 focus:ring-[#0D7C55] transition-all"
+                  >
+                    {facilities.map((fac) => (
+                      <option key={fac.id} value={fac.id}>
+                        {fac.name} — {fac.building}, {fac.floor} ({fac.location}) — Status: {fac.status}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Card Detail Ruangan Terpilih */}
+                  {selectedFacility && (
+                    <div className="bg-[#F2F3FF]/70 border border-slate-200 p-4 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-10 rounded-xl bg-[#0D7C55] text-white flex items-center justify-center shrink-0 shadow-sm">
+                          <Monitor className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-[#131B2E] font-jakarta text-sm">
+                              {selectedFacility.name} — {selectedFacility.building}, {selectedFacility.floor}
+                            </p>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                              selectedFacility.status === "ACTIVE"
+                                ? "bg-emerald-100 text-[#0D7C55]"
+                                : "bg-amber-100 text-amber-700"
+                            }`}>
+                              <CheckCircle2 className="w-3 h-3" /> {selectedFacility.status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#3E4942] mt-0.5">
+                            Kode Aset: {selectedFacility.code} • Lokasi: {selectedFacility.location} • Kapasitas: {selectedFacility.capacity} Orang
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-[#3E4942] mt-0.5">Kampus Utama • Fasilkom • Lab Pemrograman & Jaringan</p>
-                  </div>
+                  )}
                 </div>
-                <div className="text-slate-400 hover:text-[#0D7C55]">
-                  <ChevronRight className="w-5 h-5 rotate-90" />
-                </div>
-              </div>
+              )}
+
               <p className="text-xs text-[#3E4942] flex items-center gap-1.5 pl-1">
-                <Info className="w-3.5 h-3.5 text-[#0D7C55]" /> Tersedia 18 unit komputer dan perlengkapan proyektor terdata di ruangan ini.
+                <Info className="w-3.5 h-3.5 text-[#0D7C55]" /> Data ruangan diambil langsung secara otomatis dari Master Data Fasilitas Admin.
               </p>
             </div>
 
@@ -200,22 +360,25 @@ export default function FormulirLaporanBaruPage() {
                 <label className="block text-xs font-bold text-[#131B2E] font-jakarta uppercase tracking-wider">
                   Deskripsi Masalah Detail <span className="text-red-500">*</span>
                 </label>
-                <span className="text-xs text-slate-400 font-inter">184 / 500 karakter</span>
+                <span className="text-xs text-slate-400 font-inter">
+                  {deskripsi.length} / 500 karakter
+                </span>
               </div>
 
               <textarea
                 rows={4}
                 value={deskripsi}
                 onChange={(e) => setDeskripsi(e.target.value)}
-                className="w-full bg-[#F2F3FF]/40 text-xs text-[#131B2E] p-4 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0D7C55] leading-relaxed resize-none"
+                className="w-full bg-[#F2F3FF]/40 text-xs text-[#131B2E] p-4 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#0D7C55] leading-relaxed resize-none font-inter"
                 placeholder="Jelaskan detail kerusakan..."
+                required
               />
               <p className="text-xs text-slate-500 pl-1">
                 Mohon sebutkan kronologi singkat dan dampak langsung terhadap kegiatan pembelajaran di ruang tersebut.
               </p>
             </div>
 
-            {/* 4. Upload Foto Bukti Kerusakan */}
+            {/* 4. Upload Foto Bukti Kerusakan (INTERAKTIF DENGAN TOMBOL UPLOAD) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-bold text-[#131B2E] font-jakarta uppercase tracking-wider">
@@ -225,42 +388,71 @@ export default function FormulirLaporanBaruPage() {
               </div>
 
               <div className="bg-[#F2F3FF]/60 border border-slate-200 p-4 rounded-2xl space-y-3">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-3 rounded-xl border border-slate-200">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-14 h-12 rounded-lg bg-slate-800 text-white flex items-center justify-center font-bold text-xs shrink-0 relative overflow-hidden">
-                      <span>JPG</span>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-[#131B2E] font-jakarta">bukti_proyektor_rusak_lab_c.jpg</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[11px] text-slate-500">2.4 MB</span>
-                        <span className="text-slate-300">•</span>
-                        <span className="inline-flex items-center gap-1 text-[11px] text-[#0D7C55] font-semibold bg-emerald-50 px-2 py-0.5 rounded-md">
-                          <CheckCircle2 className="w-3 h-3" /> Terunggah & Terverifikasi
-                        </span>
+                {selectedFile ? (
+                  /* Tampilan Jika Foto Sudah Terpilih */
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-3 rounded-xl border border-slate-200">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-14 h-12 rounded-lg bg-slate-800 text-white flex items-center justify-center font-bold text-xs shrink-0 relative overflow-hidden">
+                        {filePreview ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={filePreview} alt="preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <span>IMG</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-[#131B2E] font-jakarta truncate max-w-[220px]">
+                          {selectedFile.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[11px] text-slate-500">
+                            {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-[#0D7C55] font-semibold bg-emerald-50 px-2 py-0.5 rounded-md">
+                            <CheckCircle2 className="w-3 h-3" /> Siap Diunggah
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center space-x-2 self-end sm:self-auto">
-                    <button className="p-2 bg-[#F2F3FF] hover:bg-slate-200 text-slate-600 rounded-lg transition-colors">
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center space-x-2 self-end sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={handleRemoveFile}
+                        className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors text-xs font-semibold flex items-center gap-1"
+                      >
+                        <Trash2 className="w-4 h-4" /> Hapus
+                      </button>
+                    </div>
                   </div>
-                </div>
-
-                <div className="bg-emerald-50/80 border border-emerald-200 px-3.5 py-2.5 rounded-xl flex items-center gap-2 text-xs text-[#0D7C55] font-semibold">
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>Terdeteksi Aset: EPSON-EB2250U / INV-2022-FASIL-088 <span className="ml-2 font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full text-[10px]">Kecocokan 98%</span></span>
-                </div>
+                ) : (
+                  /* Tombol Pilih / Upload Foto */
+                  <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 hover:border-[#0D7C55] bg-white p-6 rounded-2xl transition-all cursor-pointer text-center">
+                    <input
+                      type="file"
+                      id="photo-upload"
+                      accept="image/png, image/jpeg, image/jpg"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <label htmlFor="photo-upload" className="cursor-pointer flex flex-col items-center space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-emerald-50 text-[#0D7C55] flex items-center justify-center">
+                        <UploadCloud className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-[#131B2E] font-jakarta">
+                          Klik untuk memilih foto kerusakan dari perangkat
+                        </p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">PNG, JPG atau JPEG (Maks. 5MB)</p>
+                      </div>
+                      <span className="mt-2 inline-block px-4 py-2 bg-[#0D7C55] text-white rounded-xl text-xs font-semibold shadow-sm hover:bg-[#006141]">
+                        Pilih File Foto
+                      </span>
+                    </label>
+                  </div>
+                )}
               </div>
-
-              <p className="text-xs text-slate-500 pl-1">
-                Sertakan foto jarak dekat yang memperlihatkan kode aset / lampu indikator kerusakan untuk mempercepat persiapan suku cadang teknisi.
-              </p>
             </div>
 
             {/* 5. Informasi Alur & Penanganan Otomatis */}
@@ -271,15 +463,22 @@ export default function FormulirLaporanBaruPage() {
               <div className="text-xs space-y-1">
                 <p className="font-bold text-[#131B2E] font-jakarta">Informasi Alur & Penanganan Otomatis</p>
                 <p className="text-[#3E4942] leading-relaxed">
-                  Laporan yang Anda kirim akan langsung memperbarui status ruangan di Sistem SIKAK dan mengirim tiket prioritas ke Bagian Sarana & Prasarana (ULT). Jadwal reservasi umum pada ruangan ini akan dibekukan sementara hingga status perbaikan dinyatakan selesai.
+                  Laporan yang Anda kirim akan langsung memperbarui status ruangan di Sistem SIKAK dan mengirim tiket prioritas ke Bagian Sarana & Prasarana.
                 </p>
               </div>
             </div>
 
+            {/* Error Message Feedback */}
+            {errorMsg && (
+              <div className="p-4 bg-red-50 border border-red-200 text-red-700 font-semibold text-xs rounded-2xl font-inter">
+                ⚠️ {errorMsg}
+              </div>
+            )}
+
             {/* Footer Action Buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-between pt-4 border-t border-slate-100 gap-4">
               <p className="text-xs text-slate-500 italic">
-                Draf formulir tersimpan otomatis pukul 09:42 WIB
+                Terhubung langsung ke database SIKAK
               </p>
 
               <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
@@ -290,18 +489,26 @@ export default function FormulirLaporanBaruPage() {
                   Batal
                 </Link>
 
-                <Link
-                  href="/laporan/saya"
-                  className="flex items-center justify-center gap-2 bg-[#0D7C55] hover:bg-[#006141] text-white px-6 py-3 rounded-2xl text-xs font-semibold shadow-sm transition-all font-jakarta"
+                <button
+                  type="submit"
+                  disabled={submitting || loadingFacilities || facilities.length === 0}
+                  className="flex items-center justify-center gap-2 bg-[#0D7C55] hover:bg-[#006141] text-white px-6 py-3 rounded-2xl text-xs font-semibold shadow-sm transition-all font-jakarta disabled:bg-slate-300 disabled:cursor-not-allowed"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Kirim Laporan</span>
-                </Link>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Mengirim Laporan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>Kirim Laporan</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
-
-          </div>
-
+          </form>
         </main>
       </div>
 

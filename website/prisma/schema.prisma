@@ -8,6 +8,21 @@ datasource db {
 }
 
 model User {
+  id          Int           @id @default(autoincrement())
+  name        String
+  email       String        @unique
+  username    String        @unique
+  password    String
+  role        Role          @default(USER)
+  jenisUser   JenisUser?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  verified    Boolean       @default(false)
+  dosen       Dosen?
+  mahasiswa   Mahasiswa?
+  Report      Report[]
+  Reservation Reservation[]
+  staf        Staf?
   id Int @id @default(autoincrement())
 
   name String
@@ -41,33 +56,112 @@ model User {
 }
 
 model Mahasiswa {
-  id Int @id @default(autoincrement())
-
-  nim String @unique
-
-  userId Int @unique
-
-  user User @relation(fields: [userId], references: [id])
+  id     Int    @id @default(autoincrement())
+  nim    String @unique
+  userId Int    @unique
+  user   User   @relation(fields: [userId], references: [id])
 }
 
 model Dosen {
-  id Int @id @default(autoincrement())
-
-  nip String @unique
-
-  userId Int @unique
-
-  user User @relation(fields: [userId], references: [id])
+  id     Int    @id @default(autoincrement())
+  nip    String @unique
+  userId Int    @unique
+  user   User   @relation(fields: [userId], references: [id])
 }
 
 model Staf {
-  id Int @id @default(autoincrement())
+  id     Int    @id @default(autoincrement())
+  nip    String @unique
+  userId Int    @unique
+  user   User   @relation(fields: [userId], references: [id])
+}
 
-  nip String @unique
+model Facility {
+  id          Int             @id @default(autoincrement())
+  name        String
+  code        String          @unique
+  building    String          @default("Gedung B")
+  floor       String          @default("Lantai 1")
+  location    String
+  capacity    Int
+  type        Facility_type
+  status      Facility_status @default(ACTIVE)
+  description String?         @db.Text
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime
+  Report      Report[]
+  Reservation Reservation[]
 
-  userId Int @unique
+  @@index([status])
+  @@index([type, location, capacity])
+}
 
-  user User @relation(fields: [userId], references: [id])
+model Facility_backup_20260924 {
+  id          Int                             @id @default(autoincrement())
+  name        String
+  code        String                          @unique(map: "Facility_code_key")
+  building    String                          @default("Gedung B")
+  floor       String                          @default("Lantai 1")
+  location    String?
+  capacity    Int?
+  type        Facility_backup_20260924_type   @default(RUANGAN)
+  status      Facility_backup_20260924_status @default(ACTIVE)
+  description String?                         @db.Text
+  createdAt   DateTime                        @default(now())
+  updatedAt   DateTime
+}
+
+model Report {
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  facilityId  Int
+  category    String
+  description String        @db.Text
+  photoUrl    String?
+  status      Report_status @default(PENDING)
+  notes       String?       @db.Text
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime
+  Facility    Facility      @relation(fields: [facilityId], references: [id])
+  User        User          @relation(fields: [userId], references: [id])
+
+  @@index([facilityId], map: "Report_facilityId_fkey")
+  @@index([userId], map: "Report_userId_fkey")
+}
+
+model Reservation {
+  id                 Int                @id @default(autoincrement())
+  userId             Int
+  facilityId         Int
+  start_time         DateTime           @db.DateTime(0)
+  end_time           DateTime           @db.DateTime(0)
+  status             Reservation_status @default(PENDING)
+  purpose            String             @db.Text
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime
+  cancelledAt        DateTime?
+  cancellationReason String?            @db.Text
+  Facility           Facility           @relation(fields: [facilityId], references: [id])
+  User               User               @relation(fields: [userId], references: [id])
+
+  @@index([facilityId, status, start_time, end_time])
+  @@index([userId, createdAt])
+}
+
+model Reservation_backup_20260924 {
+  id         Int                                @id @default(autoincrement())
+  userId     Int
+  facilityId Int
+  date       DateTime
+  startTime  String
+  endTime    String
+  status     Reservation_backup_20260924_status @default(PENDING)
+  purpose    String?                            @db.Text
+  createdAt  DateTime                           @default(now())
+  updatedAt  DateTime
+
+  @@index([facilityId], map: "Reservation_facilityId_fkey")
+  @@index([userId], map: "Reservation_userId_fkey")
 }
 
 model Facility {
@@ -156,20 +250,46 @@ enum ReservationStatus {
 
 enum Role {
   ADMIN
-
   PETUGAS
-
   USER
 }
 
 enum JenisUser {
   MAHASISWA
-
   DOSEN
-
   STAF
 }
 
+enum Reservation_status {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum Report_status {
+  PENDING
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum Reservation_backup_20260924_status {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum Facility_type {
+  CLASSROOM
+  HALL
+  LABORATORY
+  EQUIPMENT
+  FIELD
+}
+
+enum Facility_backup_20260924_type {
 model Facility {
   id          Int            @id @default(autoincrement())
   name        String
@@ -227,6 +347,16 @@ enum FacilityType {
   AULA
 }
 
+enum Facility_status {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum Facility_backup_20260924_status {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
 enum FacilityStatus {
   ACTIVE
   INACTIVE

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -9,30 +9,72 @@ import {
   CheckCircle2,
   Plus,
   ChevronRight,
+  Loader2,
+  FileText,
 } from "lucide-react";
 import Navbar from "@/components/dashboard/navbar";
 import DashboardFooter from "@/components/dashboard/footer";
 
-export default function LaporanKerusakanPage() {
-  const [activeTab, setActiveTab] = useState<"publik" | "saya">("publik");
-
-  // Contoh data user (opsional, sesuaikan dengan props Navbar Anda jika menggunakan data dari session)
-  const currentUser = {
-    name: "Izzatu Khoirul Fata",
-    email: "izzatu@students.undip.ac.id",
-    role: "Mahasiswa",
-    identifier: "24060124120039",
+type ReportItem = {
+  id: number;
+  category: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  Facility: {
+    name: string;
+    building: string;
+    floor: string;
+    location: string;
+    status: string;
   };
+};
+
+export default function LaporanKerusakanPage() {
+  const [reports, setReports] = useState<ReportItem[]>([]);
+  const [stats, setStats] = useState({
+    totalKerusakan: 0,
+    dalamPerbaikan: 0,
+    laporanBaru: 0,
+    diselesaikan: 0,
+  });
+  const [loading, setLoading] = useState<boolean>(true);
+  const [errorMsg, setErrorMsg] = useState<string>("");
+
+  // Ambil Semua Laporan Publik & Statistik Real-Time dari Database (GET /api/reports)
+  useEffect(() => {
+    async function fetchPublicReports() {
+      try {
+        const res = await fetch("/api/reports");
+        if (res.ok) {
+          const data = await res.json();
+          setReports(data.reports || []);
+          if (data.stats) {
+            setStats(data.stats);
+          }
+        } else {
+          setErrorMsg("Gagal mengambil data laporan publik.");
+        }
+      } catch (err) {
+        console.error("FETCH PUBLIC REPORTS ERROR:", err);
+        setErrorMsg("Gagal terhubung ke server.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPublicReports();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#F2F3FF] text-[#131B2E] font-inter flex flex-col justify-between pt-[64px]">
       <div>
-        {/* ================= NAVBAR TERPUSAT ================= */}
-        <Navbar user={currentUser} />
+        {/* NAVBAR */}
+        <Navbar />
 
-        {/* ================= MAIN CONTENT ================= */}
+        {/*  MAIN CONTENT */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 space-y-6">
-
+          {/* Breadcrumb & Header Title */}
           <div className="space-y-2">
             <div className="flex items-center space-x-2 text-xs text-[#3E4942] font-inter">
               <span>Laporan</span>
@@ -50,6 +92,7 @@ export default function LaporanKerusakanPage() {
                 </p>
               </div>
 
+              {/* Action Buttons */}
               <div className="flex items-center gap-3 shrink-0">
                 <Link
                   href="/laporan/saya"
@@ -57,7 +100,6 @@ export default function LaporanKerusakanPage() {
                 >
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   <span>Detail & Progress Laporan Saya</span>
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">1 Aktif</span>
                 </Link>
 
                 <Link
@@ -71,13 +113,17 @@ export default function LaporanKerusakanPage() {
             </div>
           </div>
 
-          {/* STATS CARDS */}
+          {/* STATS CARDS REAL-TIME*/}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-xs font-bold text-[#3E4942] uppercase tracking-wider font-jakarta">TOTAL KERUSAKAN SAAT INI</p>
+                <p className="text-xs font-bold text-[#3E4942] uppercase tracking-wider font-jakarta">
+                  TOTAL KERUSAKAN SAAT INI
+                </p>
                 <div className="flex items-baseline space-x-1.5">
-                  <span className="text-3xl font-extrabold text-[#131B2E] font-jakarta">7</span>
+                  <span className="text-3xl font-extrabold text-[#131B2E] font-jakarta">
+                    {stats.totalKerusakan}
+                  </span>
                   <span className="text-xs text-slate-500 font-inter">Fasilitas</span>
                 </div>
               </div>
@@ -88,9 +134,13 @@ export default function LaporanKerusakanPage() {
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-xs font-bold text-[#3E4942] uppercase tracking-wider font-jakarta">DALAM PERBAIKAN</p>
+                <p className="text-xs font-bold text-[#3E4942] uppercase tracking-wider font-jakarta">
+                  DALAM PERBAIKAN
+                </p>
                 <div className="flex items-baseline space-x-1.5">
-                  <span className="text-3xl font-extrabold text-[#131B2E] font-jakarta">4</span>
+                  <span className="text-3xl font-extrabold text-[#131B2E] font-jakarta">
+                    {stats.dalamPerbaikan}
+                  </span>
                   <span className="text-xs text-slate-500 font-inter">Ruangan</span>
                 </div>
               </div>
@@ -101,9 +151,13 @@ export default function LaporanKerusakanPage() {
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-xs font-bold text-[#3E4942] uppercase tracking-wider font-jakarta">LAPORAN BARU</p>
+                <p className="text-xs font-bold text-[#3E4942] uppercase tracking-wider font-jakarta">
+                  LAPORAN BARU
+                </p>
                 <div className="flex items-baseline space-x-1.5">
-                  <span className="text-3xl font-extrabold text-[#131B2E] font-jakarta">3</span>
+                  <span className="text-3xl font-extrabold text-[#131B2E] font-jakarta">
+                    {stats.laporanBaru}
+                  </span>
                   <span className="text-xs text-slate-500 font-inter">Laporan Masuk</span>
                 </div>
               </div>
@@ -114,10 +168,16 @@ export default function LaporanKerusakanPage() {
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div className="space-y-1">
-                <p className="text-xs font-bold text-[#3E4942] uppercase tracking-wider font-jakarta">DISELESAIKAN PEKAN INI</p>
+                <p className="text-xs font-bold text-[#3E4942] uppercase tracking-wider font-jakarta">
+                  DISELESAIKAN PEKAN INI
+                </p>
                 <div className="flex items-baseline space-x-1.5">
-                  <span className="text-3xl font-extrabold text-[#131B2E] font-jakarta">12</span>
-                  <span className="text-xs text-emerald-600 font-semibold font-inter">Fasilitas diperbaiki</span>
+                  <span className="text-3xl font-extrabold text-[#131B2E] font-jakarta">
+                    {stats.diselesaikan}
+                  </span>
+                  <span className="text-xs text-emerald-600 font-semibold font-inter">
+                    Fasilitas diperbaiki
+                  </span>
                 </div>
               </div>
               <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -126,21 +186,22 @@ export default function LaporanKerusakanPage() {
             </div>
           </div>
 
-          {/* DATA SECTION */}
+          {/* ================= DATA SECTION ================= */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
               <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => setActiveTab("publik")}
-                  className={`pb-2 text-sm font-bold border-b-2 transition-all font-jakarta ${
-                    activeTab === "publik" ? "border-[#0D7C55] text-[#0D7C55]" : "border-transparent text-slate-400 hover:text-slate-600"
-                  }`}
-                >
-                  Semua Laporan Publik <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">14</span>
-                </button>
+                <span className="pb-2 text-sm font-bold border-b-2 border-[#0D7C55] text-[#0D7C55] font-jakarta">
+                  Semua Laporan Publik{" "}
+                  <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-[#0D7C55]">
+                    {reports.length}
+                  </span>
+                </span>
 
-                <Link href="/laporan/saya" className="pb-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600 font-jakarta">
-                  Laporan Saya <span className="ml-1.5 px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">2</span>
+                <Link
+                  href="/laporan/saya"
+                  className="pb-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-600 font-jakarta"
+                >
+                  Laporan Saya
                 </Link>
               </div>
 
@@ -150,39 +211,90 @@ export default function LaporanKerusakanPage() {
               </div>
             </div>
 
-            {/* TABLE */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-[#3E4942] font-jakarta bg-[#F2F3FF]/40">
-                    <th className="py-3.5 px-4 rounded-l-xl">Nama Fasilitas & Lokasi</th>
-                    <th className="py-3.5 px-4">Kategori Kerusakan</th>
-                    <th className="py-3.5 px-4">Tanggal Lapor</th>
-                    <th className="py-3.5 px-4">Status Fasilitas</th>
-                    <th className="py-3.5 px-4">Status Laporan</th>
-                    <th className="py-3.5 px-4 text-right rounded-r-xl">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs font-inter">
-                  <tr className="hover:bg-[#F2F3FF]/30 transition-colors">
-                    <td className="py-4 px-4 font-bold text-[#131B2E]">Lab Komputer C</td>
-                    <td className="py-4 px-4 text-[#3E4942]">Proyektor & Display AV</td>
-                    <td className="py-4 px-4 text-[#3E4942]">15 Sep 2026</td>
-                    <td className="py-4 px-4"><span className="text-amber-600 font-semibold">Dalam Perbaikan</span></td>
-                    <td className="py-4 px-4"><span className="text-blue-600 font-semibold">Diproses Teknisi</span></td>
-                    <td className="py-4 px-4 text-right">
-                      <Link href="/laporan/saya" className="px-3 py-1.5 bg-[#F2F3FF] hover:bg-slate-200 text-[#0D7C55] font-semibold rounded-lg text-xs font-jakarta">
-                        Detail Progres
-                      </Link>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+            {/* Error Feedback */}
+            {errorMsg && (
+              <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-2xl">
+                ⚠️ {errorMsg}
+              </div>
+            )}
 
+            {/* Loading Indicator */}
+            {loading ? (
+              <div className="flex items-center justify-center p-12 text-xs text-slate-500 gap-2 font-jakarta">
+                <Loader2 className="w-4 h-4 animate-spin text-[#0D7C55]" />
+                <span>Memuat data semua laporan publik...</span>
+              </div>
+            ) : reports.length === 0 ? (
+              <div className="text-center py-12 space-y-2">
+                <FileText className="w-10 h-10 text-slate-300 mx-auto" />
+                <p className="text-xs text-slate-500 font-medium font-jakarta">
+                  Belum ada laporan kerusakan yang tercatat di sistem.
+                </p>
+              </div>
+            ) : (
+              /* TABEL PUBLIK (Tanpa Kolom Aksi) */
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-[#3E4942] font-jakarta bg-[#F2F3FF]/40">
+                      <th className="py-3.5 px-4 rounded-l-xl">Nama Fasilitas & Lokasi</th>
+                      <th className="py-3.5 px-4">Kategori Kerusakan</th>
+                      <th className="py-3.5 px-4">Tanggal Lapor</th>
+                      <th className="py-3.5 px-4">Status Fasilitas</th>
+                      <th className="py-3.5 px-4 rounded-r-xl">Status Laporan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs font-inter">
+                    {reports.map((item) => (
+                      <tr key={item.id} className="hover:bg-[#F2F3FF]/30 transition-colors">
+                        <td className="py-4 px-4 font-bold text-[#131B2E]">
+                          <p className="font-bold text-[#131B2E] font-jakarta">{item.Facility.name}</p>
+                          <p className="text-[11px] text-[#3E4942]">
+                            {item.Facility.building}, {item.Facility.floor} ({item.Facility.location})
+                          </p>
+                        </td>
+                        <td className="py-4 px-4 text-[#3E4942]">
+                          <span className="font-semibold text-slate-800 uppercase text-[11px] font-jakarta block">
+                            {item.category}
+                          </span>
+                          <p className="text-[11px] text-slate-500 truncate max-w-xs">{item.description}</p>
+                        </td>
+                        <td className="py-4 px-4 text-[#3E4942] whitespace-nowrap">
+                          {new Date(item.createdAt).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </td>
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                            {item.Facility.status}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                              item.status === "PENDING"
+                                ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                : item.status === "IN_PROGRESS"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </main>
       </div>
+
+      {/* Footer */}
       <DashboardFooter />
     </div>
   );
