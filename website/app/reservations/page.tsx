@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Navbar from "@/components/dashboard/navbar";
+import DashboardFooter from "@/components/dashboard/footer";
 import ReservationHistory from "@/components/reservations/reservation-history";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -27,6 +28,8 @@ export default async function ReservationsPage() {
       <main className="min-h-screen bg-gray-50 pt-16">
         <ReservationHistory />
       </main>
+
+      <DashboardFooter />
     </>
   );
 }
